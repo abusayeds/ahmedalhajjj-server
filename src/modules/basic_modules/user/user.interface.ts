@@ -2,13 +2,17 @@ import { Document } from "mongoose";
 
 export type IPendingUser = {
   email: string;
-  name: string;
+  firstName?: string;
+  lastName?: string;
+  name?: string;
   password: string;
-  confirmPassword: string;
-  role: "user" | "admin";
+  confirmPassword?: string;
+  role?: "user" | "admin";
 } & Document;
 
 export type IUser = {
+  firstName?: string;
+  lastName?: string;
   name?: string;
   email: string;
   password?: string;
@@ -21,7 +25,13 @@ export type IUser = {
   };
   role: "admin" | "user";
   isDeleted: boolean;
-  isVerify: boolean
+  isVerify: boolean;
+  currentSubscription?: string;
+  subscriptionType?: "VIP" | "Forex" | "Crypto" | null;
+  subscriptionStatus: "active" | "trial" | "expired" | "cancelled" | "none";
+  subscriptionEndDate?: Date;
+  freeTrialEndDate?: Date;
+  hasUsedFreeAccess: boolean;
 } & Document;
 
 export type IOTP = {

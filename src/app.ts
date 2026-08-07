@@ -17,6 +17,16 @@ const app: Application = express();
 
 // // Define __dirname manually
 
+// Stripe webhook - raw body parser (must be before json parser)
+app.post(
+  "/stripe/webhook",
+  express.raw({ type: "application/json" }),
+  (req: Request, res: Response, next: NextFunction) => {
+    (req as any).rawBody = req.body;
+    next();
+  }
+);
+
 //parsers
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));

@@ -1,0 +1,544 @@
+{
+  "info": {
+    "_postman_id": "ahmedalhajjj-api-collection-v3",
+    "name": "AhmedAlhajji Trading Platform API Collection",
+    "description": "Complete Postman Collection with Automated Authentication (firstName, lastName, optional phone & address), Subscription Plan Purchase, Stripe Webhook, Coupons, and Trial Management APIs.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "accessToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "refreshToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "role",
+      "value": "user",
+      "type": "string"
+    },
+    {
+      "key": "forgotToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "verifyForgotToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "userEmail",
+      "value": "user@example.com",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Authentication",
+      "description": "Automated Authentication Folder with 9 Required APIs & Automatic Token/Role Management Scripts.",
+      "item": [
+        {
+          "name": "1. Register User",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const jsonData = pm.response.json();",
+                  "if (jsonData.data && (jsonData.data.token || jsonData.data.accessToken)) {",
+                  "    const token = jsonData.data.token || jsonData.data.accessToken;",
+                  "    pm.collectionVariables.set('accessToken', token);",
+                  "    pm.collectionVariables.set('token', token);",
+                  "    console.log('AccessToken automatically saved:', token);",
+                  "}",
+                  "if (jsonData.data && jsonData.data.email) {",
+                  "    pm.collectionVariables.set('userEmail', jsonData.data.email);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"Alex\",\n  \"lastName\": \"Trader\",\n  \"email\": \"user@example.com\",\n  \"password\": \"Password123!\",\n  \"confirmPassword\": \"Password123!\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost:2002/api/v1/user/register",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "2002",
+              "path": ["api", "v1", "user", "register"]
+            }
+          }
+        },
+        {
+          "name": "2. Verify OTP",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const jsonData = pm.response.json();",
+                  "if (jsonData.data && (jsonData.data.token || jsonData.data.accessToken)) {",
+                  "    const token = jsonData.data.token || jsonData.data.accessToken;",
+                  "    pm.collectionVariables.set('accessToken', token);",
+                  "    pm.collectionVariables.set('token', token);",
+                  "    console.log('AccessToken automatically saved after OTP:', token);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"otp\": \"123456\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost:2002/api/v1/user/verify-otp",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "2002",
+              "path": ["api", "v1", "user", "verify-otp"]
+            }
+          }
+        },
+        {
+          "name": "3. Login User",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const jsonData = pm.response.json();",
+                  "if (jsonData && jsonData.data) {",
+                  "    const token = jsonData.data.token || jsonData.data.accessToken || (jsonData.data.user && jsonData.data.user.token);",
+                  "    if (token) {",
+                  "        pm.collectionVariables.set('accessToken', token);",
+                  "        pm.collectionVariables.set('token', token);",
+                  "        console.log('AccessToken automatically saved on Login:', token);",
+                  "    }",
+                  "    if (jsonData.data.refreshToken) {",
+                  "        pm.collectionVariables.set('refreshToken', jsonData.data.refreshToken);",
+                  "    }",
+                  "    const userRole = (jsonData.data.user && jsonData.data.user.role) || jsonData.data.role || 'user';",
+                  "    pm.collectionVariables.set('role', userRole);",
+                  "    console.log('Role automatically saved on Login:', userRole);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@example.com\",\n  \"password\": \"Password123!\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost:2002/api/v1/user/login",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "2002",
+              "path": ["api", "v1", "user", "login"]
+            }
+          }
+        },
+        {
+          "name": "4. Resend OTP",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{userEmail}}\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost:2002/api/v1/user/resend-otp",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "2002",
+              "path": ["api", "v1", "user", "resend-otp"]
+            }
+          }
+        },
+        {
+          "name": "5. Forgot Password",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const jsonData = pm.response.json();",
+                  "if (jsonData && jsonData.data && jsonData.data.token) {",
+                  "    pm.collectionVariables.set('forgotToken', jsonData.data.token);",
+                  "    pm.collectionVariables.set('accessToken', jsonData.data.token);",
+                  "    console.log('Forgot Password Token automatically saved:', jsonData.data.token);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@example.com\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost:2002/api/v1/user/forgot-password",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "2002",
+              "path": ["api", "v1", "user", "forgot-password"]
+            }
+          }
+        },
+        {
+          "name": "6. Verify Forgot Password OTP",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const jsonData = pm.response.json();",
+                  "if (jsonData && jsonData.data && jsonData.data.token) {",
+                  "    pm.collectionVariables.set('verifyForgotToken', jsonData.data.token);",
+                  "    pm.collectionVariables.set('accessToken', jsonData.data.token);",
+                  "    console.log('Verify Forgot OTP Token automatically saved:', jsonData.data.token);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{forgotToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"otp\": \"123456\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost:2002/api/v1/user/verify-forgot-otp",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "2002",
+              "path": ["api", "v1", "user", "verify-forgot-otp"]
+            }
+          }
+        },
+        {
+          "name": "7. Change Password",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"oldPassword\": \"Password123!\",\n  \"newPassword\": \"NewSecurePass123!\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost:2002/api/v1/user/change-password",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "2002",
+              "path": ["api", "v1", "user", "change-password"]
+            }
+          }
+        },
+        {
+          "name": "8. My Profile",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": {
+              "raw": "http://localhost:2002/api/v1/user/my-profile",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "2002",
+              "path": ["api", "v1", "user", "my-profile"]
+            }
+          }
+        },
+        {
+          "name": "9. Update Profile",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"Alex\",\n  \"lastName\": \"Trader Updated\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost:2002/api/v1/user/update-profile",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "2002",
+              "path": ["api", "v1", "user", "update-profile"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Plan Purchase & Subscriptions",
+      "item": [
+        {
+          "name": "Get All Subscription Plans",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "http://localhost:2002/api/v1/subscription",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "2002",
+              "path": ["api", "v1", "subscription"]
+            }
+          }
+        },
+        {
+          "name": "Initiate Plan Purchase (User)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"subscriptionId\": \"66b3f12a84d29a001a4e1234\",\n  \"isFreeTrial\": false,\n  \"couponCode\": \"ELITE50\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost:2002/api/v1/subscription/purchase/initiate",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "2002",
+              "path": ["api", "v1", "subscription", "purchase", "initiate"]
+            }
+          }
+        },
+        {
+          "name": "Get User Purchase History",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": {
+              "raw": "http://localhost:2002/api/v1/subscription/user/purchases",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "2002",
+              "path": ["api", "v1", "subscription", "user", "purchases"]
+            }
+          }
+        },
+        {
+          "name": "Get Current Active Subscription",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": {
+              "raw": "http://localhost:2002/api/v1/subscription/user/current",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "2002",
+              "path": ["api", "v1", "subscription", "user", "current"]
+            }
+          }
+        },
+        {
+          "name": "Create Subscription Plan (Admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"VIP Plan\",\n  \"description\": \"Trading signals subscription plan\",\n  \"price\": 79,\n  \"monthly\": \"79\",\n  \"yearly\": \"699\",\n  \"features\": [\n    \"All signal types: Scalp, Swing, and Long-term\",\n    \"Up to 10 signals per day (Forex & Crypto)\",\n    \"Entry/Exit alerts with Stop-Loss protection\"\n  ],\n  \"isActive\": true\n}"
+            },
+            "url": {
+              "raw": "http://localhost:2002/api/v1/subscription/create",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "2002",
+              "path": ["api", "v1", "subscription", "create"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Stripe Webhook",
+      "item": [
+        {
+          "name": "Stripe Webhook Event Notification",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "stripe-signature", "value": "t=1700000000,v1=mock_signature_hash" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"evt_1MockEvent123\",\n  \"type\": \"checkout.session.completed\",\n  \"data\": {\n    \"object\": {\n      \"id\": \"cs_test_a1b2c3d4e5f6\",\n      \"customer\": \"cus_123456789\",\n      \"subscription\": \"sub_987654321\",\n      \"amount_total\": 7900,\n      \"payment_status\": \"paid\",\n      \"metadata\": {\n        \"userId\": \"66b3f12a84d29a001a4e5678\",\n        \"subscriptionId\": \"66b3f12a84d29a001a4e1234\",\n        \"subscriptionName\": \"VIP\",\n        \"couponCode\": \"ELITE50\"\n      }\n    }\n  }\n}"
+            },
+            "url": {
+              "raw": "http://localhost:2002/stripe/webhook",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "2002",
+              "path": ["stripe", "webhook"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Coupons",
+      "item": [
+        {
+          "name": "Get All Coupons",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "http://localhost:2002/api/v1/coupon",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "2002",
+              "path": ["api", "v1", "coupon"]
+            }
+          }
+        },
+        {
+          "name": "Create New Coupon Code",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"SUMMER50\",\n  \"discount\": 50,\n  \"discountType\": \"percentage\",\n  \"limit\": 100,\n  \"expiry\": \"2026-08-30\",\n  \"status\": \"Active\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost:2002/api/v1/coupon/create",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "2002",
+              "path": ["api", "v1", "coupon", "create"]
+            }
+          }
+        },
+        {
+          "name": "Validate Coupon Code (Plan Purchase)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"ELITE50\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost:2002/api/v1/coupon/validate",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "2002",
+              "path": ["api", "v1", "coupon", "validate"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Trial & Promo Config",
+      "item": [
+        {
+          "name": "Get Trial Config",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "http://localhost:2002/api/v1/subscription/trial-config",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "2002",
+              "path": ["api", "v1", "subscription", "trial-config"]
+            }
+          }
+        },
+        {
+          "name": "Update Trial Config",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"promoOn\": true,\n  \"promoLimit\": 100,\n  \"promoDuration\": \"1 Month (30 Days)\",\n  \"trialOn\": true,\n  \"trialDuration\": \"2 Days\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost:2002/api/v1/subscription/trial-config",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "2002",
+              "path": ["api", "v1", "subscription", "trial-config"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

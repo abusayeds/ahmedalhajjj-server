@@ -61,6 +61,7 @@ const createUserDB = async (payload: IUser) => {
   }
   const email = payload.email;
   const otp = generateOTP();
+   console.log(otp);
   await saveOTP(email, otp);
   await sendRegistationOtpEmail(otp, email);
 
@@ -93,6 +94,12 @@ const loginDB = async (email: string, password: string) => {
   if (user.isDeleted) {
     throw new AppError(httpStatus.NOT_FOUND,
       "your account is deleted by admin.",
+    );
+  }
+
+  if (!user.isVerify) {
+    throw new AppError(httpStatus.FORBIDDEN,
+      "Email is not verified. Please verify your OTP/email first before logging in.",
     );
   }
 

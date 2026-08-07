@@ -59,8 +59,12 @@ const verifyOTP = catchAsync(async (req: Request, res: Response) => {
 
 const loginUser = catchAsync(async (req: Request, res: Response) => {
   const { email, password } = req.body;
-  const user = await userService.loginDB(email, password)
-  const token = generateToken({ user: user });
+  const user = await userService.loginDB(email, password);
+  const token = generateToken({
+    _id: user._id,
+    email: user.email,
+    role: user.role,
+  });
   sendResponse(res, {
     statusCode: httpStatus.OK,
     success: true,

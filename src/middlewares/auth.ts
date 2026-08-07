@@ -14,20 +14,26 @@ export interface AuthRequest extends Request {
 export const authMiddleware = (...requiredRoles: TRole[]) => {
   return async (req: AuthRequest, res: Response, next: NextFunction) => {
     const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith("Bearer ")) { throw new AppError(httpStatus.BAD_REQUEST, "No token provided or invalid format.") }
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return next(new AppError(httpStatus.UNAUTHORIZED, "No token provided or invalid format."));
+    }
     const token = authHeader.split(" ")[1];
     try {
       const decoded: any = jwt.verify(token, process.env.JWT_SECRET_KEY as string);
-      const user: IUser | null = await UserModel.findById(decoded.user._id)
-      const role = decoded.user.role
-      if (requiredRoles && !requiredRoles.includes(role)) { throw new AppError(httpStatus.UNAUTHORIZED, `You are not authorized.`,) }
-      if (!user) { return next(new AppError(httpStatus.UNAUTHORIZED, "User not found or unauthorized.")) }
+      const userId = decoded._id || decoded.id || (decoded.user && (decoded.user._id || decoded.user.id));
+      const role = decoded.role || (decoded.user && decoded.user.role);
+
+      const user: IUser | null = await UserModel.findById(userId);
+      if (requiredRoles && requiredRoles.length > 0 && role && !requiredRoles.includes(role)) {
+        return next(new AppError(httpStatus.UNAUTHORIZED, `You are not authorized.`));
+      }
+      if (!user) {
+        return next(new AppError(httpStatus.UNAUTHORIZED, "User not found or unauthorized."));
+      }
       req.user = user;
       next();
     } catch (error) {
-      throw new AppError(400,
-        `Invalid token!`,
-      );
+      return next(new AppError(httpStatus.UNAUTHORIZED, "Invalid token!"));
     }
   };
 };
