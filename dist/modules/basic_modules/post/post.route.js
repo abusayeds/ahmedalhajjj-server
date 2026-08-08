@@ -1,0 +1,16 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.postRoutes = void 0;
+const express_1 = require("express");
+const auth_1 = require("../../../middlewares/auth");
+const role_1 = require("../../../utils/role");
+const post_controller_1 = require("./post.controller");
+const router = (0, express_1.Router)();
+router.get("/app", (0, auth_1.authMiddleware)(role_1.role.user), post_controller_1.getPostsApp);
+router.get("/", (0, auth_1.authMiddleware)(role_1.role.admin), post_controller_1.getPostsAdmin);
+router.post("/create", (0, auth_1.authMiddleware)(role_1.role.admin), post_controller_1.createPostHandler);
+router.patch("/:id", (0, auth_1.authMiddleware)(role_1.role.admin), post_controller_1.updatePostHandler);
+router.delete("/:id", (0, auth_1.authMiddleware)(role_1.role.admin), post_controller_1.deletePostHandler);
+router.post("/:id/publish", (0, auth_1.authMiddleware)(role_1.role.admin), post_controller_1.publishPostHandler);
+router.post("/:id/schedule", (0, auth_1.authMiddleware)(role_1.role.admin), post_controller_1.schedulePostHandler);
+exports.postRoutes = router;
