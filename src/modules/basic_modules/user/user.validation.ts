@@ -48,9 +48,39 @@ const updateUserValidation = z.object({
     firstName: z.string().optional(),
     lastName: z.string().optional(),
     name: z.string().optional(),
+    email: z.string().email().optional(),
     phone: z.string().optional(),
     address: z.string().optional(),
     image: z.string().optional(),
+  }),
+});
+
+const adminUpdateUserValidation = z.object({
+  body: z.object({
+    userId: z.string({ required_error: "userId is required!" }),
+    name: z.string().optional(),
+    firstName: z.string().optional(),
+    lastName: z.string().optional(),
+    email: z.string().email().optional(),
+    subscriptionType: z.enum(["VIP", "Forex", "Crypto"]).optional(),
+    subscriptionStatus: z.enum(["active", "trial", "expired", "cancelled", "none"]).optional(),
+    status: z.enum(["active", "blocked"]).optional(),
+  }),
+});
+
+const upgradeSubscriptionValidation = z.object({
+  body: z.object({
+    userId: z.string({ required_error: "userId is required!" }),
+    subscriptionType: z.enum(["VIP", "Forex", "Crypto"], {
+      required_error: "subscriptionType is required!",
+    }),
+  }),
+});
+
+const extendSubscriptionValidation = z.object({
+  body: z.object({
+    userId: z.string({ required_error: "userId is required!" }),
+    days: z.coerce.number().min(1, "days must be at least 1"),
   }),
 });
 
@@ -76,4 +106,7 @@ export const userValidation = {
   loginValidation,
   resetPassWordValidation,
   updateUserValidation,
+  adminUpdateUserValidation,
+  upgradeSubscriptionValidation,
+  extendSubscriptionValidation,
 };

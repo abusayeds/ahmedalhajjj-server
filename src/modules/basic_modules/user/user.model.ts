@@ -28,6 +28,11 @@ const UserSchema = new Schema<IUser>(
       enum: ["admin", "user"],
       default: "user",
     },
+    status: {
+      type: String,
+      enum: ["active", "blocked"],
+      default: "active",
+    },
     isDeleted: {
       type: Boolean,
       default: false,
@@ -54,6 +59,7 @@ const UserSchema = new Schema<IUser>(
     subscriptionEndDate: { type: Date },
     freeTrialEndDate: { type: Date },
     hasUsedFreeAccess: { type: Boolean, default: false },
+    promoAccessUsed: { type: Boolean, default: false },
   },
   { timestamps: true }
 );

@@ -8,6 +8,17 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
+var __rest = (this && this.__rest) || function (s, e) {
+    var t = {};
+    for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p) && e.indexOf(p) < 0)
+        t[p] = s[p];
+    if (s != null && typeof Object.getOwnPropertySymbols === "function")
+        for (var i = 0, p = Object.getOwnPropertySymbols(s); i < p.length; i++) {
+            if (e.indexOf(p[i]) < 0 && Object.prototype.propertyIsEnumerable.call(s, p[i]))
+                t[p[i]] = s[p[i]];
+        }
+    return t;
+};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -20,7 +31,6 @@ const AppError_1 = __importDefault(require("../../../errors/AppError"));
 const decoded_1 = require("../../../middlewares/decoded");
 const catchAsync_1 = __importDefault(require("../../../utils/catchAsync"));
 const sendResponse_1 = __importDefault(require("../../../utils/sendResponse"));
-const user_model_1 = require("./user.model");
 const user_service_1 = require("./user.service");
 const registerUser = (0, catchAsync_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const { email } = req.body;
@@ -148,8 +158,8 @@ const resetPassword = (0, catchAsync_1.default)((req, res) => __awaiter(void 0, 
     });
 }));
 const changePassword = (0, catchAsync_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    const { decoded, } = yield (0, decoded_1.tokenDecoded)(req, res);
-    const email = decoded.user.email;
+    var _a;
+    const email = (_a = req.user) === null || _a === void 0 ? void 0 : _a.email;
     yield user_service_1.userService.changePasswordDB(req.body, email);
     (0, sendResponse_1.default)(res, {
         statusCode: http_status_1.default.OK,
@@ -159,8 +169,8 @@ const changePassword = (0, catchAsync_1.default)((req, res) => __awaiter(void 0,
     });
 }));
 const updateUser = (0, catchAsync_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    const { decoded, } = yield (0, decoded_1.tokenDecoded)(req, res);
-    const userId = decoded.user._id;
+    var _a;
+    const userId = (_a = req.user) === null || _a === void 0 ? void 0 : _a._id;
     const result = yield user_service_1.userService.updateUserDB(req.body, req.file, userId);
     (0, sendResponse_1.default)(res, {
         statusCode: http_status_1.default.OK,
@@ -180,12 +190,52 @@ const myProfile = (0, catchAsync_1.default)((req, res) => __awaiter(void 0, void
     });
 }));
 const getAllUsers = (0, catchAsync_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    const rersult = yield user_service_1.userService.allUserDB(req.query);
+    const result = yield user_service_1.userService.allUserDB(req.query);
     (0, sendResponse_1.default)(res, {
         statusCode: http_status_1.default.OK,
         success: true,
         message: "User list retrieved successfully",
-        data: rersult
+        data: result.user,
+        pagination: result.pagination,
+    });
+}));
+const adminUpdateUser = (0, catchAsync_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const _a = req.body, { userId } = _a, payload = __rest(_a, ["userId"]);
+    if (!userId) {
+        throw new AppError_1.default(http_status_1.default.BAD_REQUEST, "userId is required.");
+    }
+    const result = yield user_service_1.userService.adminUpdateUserDB(userId, payload);
+    (0, sendResponse_1.default)(res, {
+        statusCode: http_status_1.default.OK,
+        success: true,
+        message: "User updated successfully.",
+        data: result,
+    });
+}));
+const upgradeUserSubscription = (0, catchAsync_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const { userId, subscriptionType } = req.body;
+    if (!userId || !subscriptionType) {
+        throw new AppError_1.default(http_status_1.default.BAD_REQUEST, "userId and subscriptionType are required.");
+    }
+    const result = yield user_service_1.userService.upgradeUserSubscriptionDB(userId, subscriptionType);
+    (0, sendResponse_1.default)(res, {
+        statusCode: http_status_1.default.OK,
+        success: true,
+        message: "User subscription upgraded successfully.",
+        data: result,
+    });
+}));
+const extendUserSubscription = (0, catchAsync_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const { userId, days } = req.body;
+    if (!userId || !days) {
+        throw new AppError_1.default(http_status_1.default.BAD_REQUEST, "userId and days are required.");
+    }
+    const result = yield user_service_1.userService.extendUserSubscriptionDB(userId, Number(days));
+    (0, sendResponse_1.default)(res, {
+        statusCode: http_status_1.default.OK,
+        success: true,
+        message: "User subscription extended successfully.",
+        data: result,
     });
 }));
 exports.userController = {
@@ -199,36 +249,31 @@ exports.userController = {
     updateUser,
     myProfile,
     getAllUsers,
-    verifyOTP
+    verifyOTP,
+    adminUpdateUser,
+    upgradeUserSubscription,
+    extendUserSubscription,
 };
 exports.BlockUser = (0, catchAsync_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const { userId } = req.body;
-    const { decoded, } = yield (0, decoded_1.tokenDecoded)(req, res);
-    const adminId = decoded.id;
-    const requestingUser = yield user_model_1.UserModel.findById(adminId);
-    if (!requestingUser || requestingUser.role !== "admin") {
-        throw new AppError_1.default(http_status_1.default.FORBIDDEN, "Unauthorized: Only admins can change user status.");
+    if (!userId) {
+        throw new AppError_1.default(http_status_1.default.BAD_REQUEST, "userId is required.");
     }
-    const user = yield user_model_1.UserModel.findById(userId);
-    if (!user) {
-        throw new AppError_1.default(http_status_1.default.NOT_FOUND, "User not found.");
-    }
-    if (user.role === "admin") {
-        throw new AppError_1.default(http_status_1.default.FORBIDDEN, "Cannot change status of an admin user.");
-    }
-    user.status = user.status === "active" ? "blocked" : "active";
-    yield user.save();
+    const user = yield user_service_1.userService.toggleUserBlockDB(userId);
     return (0, sendResponse_1.default)(res, {
         statusCode: http_status_1.default.OK,
         success: true,
-        message: `User status changed to ${user.status} successfully.`,
-        data: null,
+        message: `User status changed to ${user === null || user === void 0 ? void 0 : user.status} successfully.`,
+        data: user,
         pagination: undefined,
     });
 }));
 exports.deleteUser = (0, catchAsync_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    var _a;
-    const id = (_a = req.query) === null || _a === void 0 ? void 0 : _a.id;
+    var _a, _b;
+    const id = ((_a = req.query) === null || _a === void 0 ? void 0 : _a.id) || ((_b = req.body) === null || _b === void 0 ? void 0 : _b.userId);
+    if (!id) {
+        throw new AppError_1.default(http_status_1.default.BAD_REQUEST, "User id is required.");
+    }
     const user = yield (0, user_service_1.findUserById)(id);
     if (!user) {
         throw new AppError_1.default(http_status_1.default.NOT_FOUND, "user not found .");

@@ -7,7 +7,6 @@ import AppError from "../../../errors/AppError";
 import { tokenDecoded } from "../../../middlewares/decoded";
 import catchAsync from "../../../utils/catchAsync";
 import sendResponse from "../../../utils/sendResponse";
-import { UserModel } from "./user.model";
 import {
   findUserById,
   generateToken,
@@ -166,9 +165,8 @@ const resetPassword = catchAsync(async (req: Request, res: Response) => {
   });
 
 });
-const changePassword = catchAsync(async (req: Request, res: Response) => {
-  const { decoded, }: any = await tokenDecoded(req, res)
-  const email = decoded.user.email;
+const changePassword = catchAsync(async (req: AuthRequest, res: Response) => {
+  const email = req.user?.email as string;
   await userService.changePasswordDB(req.body, email)
   sendResponse(res, {
     statusCode: httpStatus.OK,
@@ -179,9 +177,8 @@ const changePassword = catchAsync(async (req: Request, res: Response) => {
 },
 );
 
-const updateUser = catchAsync(async (req: Request, res: Response) => {
-  const { decoded, }: any = await tokenDecoded(req, res)
-  const userId = decoded.user._id;
+const updateUser = catchAsync(async (req: AuthRequest, res: Response) => {
+  const userId = req.user?._id as string;
   const result = await userService.updateUserDB(req.body, req.file, userId)
   sendResponse(res, {
     statusCode: httpStatus.OK,
@@ -203,12 +200,55 @@ const myProfile = catchAsync(async (req: AuthRequest, res) => {
 });
 
 const getAllUsers = catchAsync(async (req: Request, res: Response) => {
-  const rersult = await userService.allUserDB(req.query,)
+  const result = await userService.allUserDB(req.query,)
   sendResponse(res, {
     statusCode: httpStatus.OK,
     success: true,
     message: "User list retrieved successfully",
-    data: rersult
+    data: result.user,
+    pagination: result.pagination,
+  });
+});
+
+const adminUpdateUser = catchAsync(async (req: AuthRequest, res: Response) => {
+  const { userId, ...payload } = req.body;
+  if (!userId) {
+    throw new AppError(httpStatus.BAD_REQUEST, "userId is required.");
+  }
+  const result = await userService.adminUpdateUserDB(userId, payload);
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "User updated successfully.",
+    data: result,
+  });
+});
+
+const upgradeUserSubscription = catchAsync(async (req: AuthRequest, res: Response) => {
+  const { userId, subscriptionType } = req.body;
+  if (!userId || !subscriptionType) {
+    throw new AppError(httpStatus.BAD_REQUEST, "userId and subscriptionType are required.");
+  }
+  const result = await userService.upgradeUserSubscriptionDB(userId, subscriptionType);
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "User subscription upgraded successfully.",
+    data: result,
+  });
+});
+
+const extendUserSubscription = catchAsync(async (req: AuthRequest, res: Response) => {
+  const { userId, days } = req.body;
+  if (!userId || !days) {
+    throw new AppError(httpStatus.BAD_REQUEST, "userId and days are required.");
+  }
+  const result = await userService.extendUserSubscriptionDB(userId, Number(days));
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "User subscription extended successfully.",
+    data: result,
   });
 });
 
@@ -223,46 +263,34 @@ export const userController = {
   updateUser,
   myProfile,
   getAllUsers,
-  verifyOTP
+  verifyOTP,
+  adminUpdateUser,
+  upgradeUserSubscription,
+  extendUserSubscription,
 }
 
-export const BlockUser = catchAsync(async (req: Request, res: Response) => {
+export const BlockUser = catchAsync(async (req: AuthRequest, res: Response) => {
   const { userId } = req.body;
-  const { decoded, }: any = await tokenDecoded(req, res)
-  const adminId = decoded.id;
-  const requestingUser = await UserModel.findById(adminId);
-  if (!requestingUser || requestingUser.role !== "admin") {
-    throw new AppError(httpStatus.FORBIDDEN,
-      "Unauthorized: Only admins can change user status.",
-    );
+  if (!userId) {
+    throw new AppError(httpStatus.BAD_REQUEST, "userId is required.");
   }
-  const user = await UserModel.findById(userId);
-  if (!user) {
-    throw new AppError(httpStatus.NOT_FOUND,
-      "User not found.",
-    );
-  }
-
-  if (user.role === "admin") {
-    throw new AppError(httpStatus.FORBIDDEN,
-      "Cannot change status of an admin user.",
-    );
-  }
-  user.status = user.status === "active" ? "blocked" : "active";
-  await user.save();
-
+  const user = await userService.toggleUserBlockDB(userId);
 
   return sendResponse(res, {
     statusCode: httpStatus.OK,
     success: true,
-    message: `User status changed to ${user.status} successfully.`,
-    data: null,
+    message: `User status changed to ${user?.status} successfully.`,
+    data: user,
     pagination: undefined,
   });
 });
 
-export const deleteUser = catchAsync(async (req: Request, res: Response) => {
-  const id = req.query?.id as string;
+export const deleteUser = catchAsync(async (req: AuthRequest, res: Response) => {
+  const id = (req.query?.id as string) || req.body?.userId;
+
+  if (!id) {
+    throw new AppError(httpStatus.BAD_REQUEST, "User id is required.");
+  }
 
   const user = await findUserById(id);
 

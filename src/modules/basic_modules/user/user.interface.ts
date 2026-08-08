@@ -24,6 +24,7 @@ export type IUser = {
     path: string;
   };
   role: "admin" | "user";
+  status?: "active" | "blocked";
   isDeleted: boolean;
   isVerify: boolean;
   currentSubscription?: string;
@@ -32,6 +33,7 @@ export type IUser = {
   subscriptionEndDate?: Date;
   freeTrialEndDate?: Date;
   hasUsedFreeAccess: boolean;
+  promoAccessUsed?: boolean;
 } & Document;
 
 export type IOTP = {

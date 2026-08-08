@@ -70,6 +70,7 @@ const createUserDB = (payload) => __awaiter(void 0, void 0, void 0, function* ()
     }
     const email = payload.email;
     const otp = (0, exports.generateOTP)();
+    console.log(otp);
     yield (0, exports.saveOTP)(email, otp);
     yield (0, sendEmail_1.sendRegistationOtpEmail)(otp, email);
     const token = jsonwebtoken_1.default.sign({ email }, config_1.JWT_SECRET_KEY, { expiresIn: "7d" });
@@ -168,7 +169,19 @@ const updateUserDB = (payload, file, userId) => __awaiter(void 0, void 0, void 0
     if (!user) {
         throw new AppError_1.default(http_status_1.default.NOT_FOUND, "User not found.");
     }
-    const updateData = {};
+    if (payload.email && payload.email !== user.email) {
+        const existingEmail = yield user_model_1.UserModel.findOne({ email: payload.email });
+        if (existingEmail && String(existingEmail._id) !== String(userId)) {
+            throw new AppError_1.default(http_status_1.default.BAD_REQUEST, "Email is already in use.");
+        }
+    }
+    const updateData = Object.assign({}, payload);
+    if (payload.name && !payload.firstName && !payload.lastName) {
+        const nameParts = payload.name.trim().split(/\s+/);
+        updateData.firstName = nameParts[0] || "";
+        updateData.lastName = nameParts.slice(1).join(" ") || "";
+        updateData.name = payload.name.trim();
+    }
     if (file) {
         const imagePath = `public\\images\\${file.filename}`;
         const publicFileURL = `/images/${file.filename}`;
@@ -177,7 +190,7 @@ const updateUserDB = (payload, file, userId) => __awaiter(void 0, void 0, void 0
             publicFileURL: publicFileURL,
         };
     }
-    const result = yield user_model_1.UserModel.findByIdAndUpdate(userId, Object.assign(Object.assign({}, payload), updateData), { new: true });
+    const result = yield user_model_1.UserModel.findByIdAndUpdate(userId, updateData, { new: true });
     const updateUser = Object.assign({}, result.toObject ? result.toObject() : result);
     delete updateUser.password;
     delete updateUser.isVerify;
@@ -191,8 +204,15 @@ const myProfileDB = (userId) => __awaiter(void 0, void 0, void 0, function* () {
     return user;
 });
 const allUserDB = (query) => __awaiter(void 0, void 0, void 0, function* () {
-    const userQuery = new queryBuilder_1.default(user_model_1.UserModel.find({ role: "user" }).select('-password -isVerify'), query).sort();
-    const { totalData } = yield userQuery.paginate(user_model_1.UserModel.find({ role: "user" }));
+    const baseFilter = { role: "user", isDeleted: false };
+    if (query.subscriptionType) {
+        baseFilter.subscriptionType = query.subscriptionType;
+    }
+    const userQuery = new queryBuilder_1.default(user_model_1.UserModel.find(baseFilter).select('-password -isVerify'), query)
+        .search(["firstName", "lastName", "name", "email"])
+        .filter()
+        .sort();
+    const { totalData } = yield userQuery.paginate(user_model_1.UserModel.find(baseFilter));
     const user = yield userQuery.modelQuery.exec();
     const currentPage = Number(query === null || query === void 0 ? void 0 : query.page) || 1;
     const limit = Number(query.limit) || 10;
@@ -202,6 +222,88 @@ const allUserDB = (query) => __awaiter(void 0, void 0, void 0, function* () {
         limit,
     });
     return { pagination, user, };
+});
+const adminUpdateUserDB = (userId, payload) => __awaiter(void 0, void 0, void 0, function* () {
+    const user = yield (0, exports.findUserById)(userId);
+    if (!user) {
+        throw new AppError_1.default(http_status_1.default.NOT_FOUND, "User not found.");
+    }
+    if (user.role === "admin") {
+        throw new AppError_1.default(http_status_1.default.FORBIDDEN, "Cannot update an admin user.");
+    }
+    const updateData = {};
+    if (payload.name) {
+        const nameParts = payload.name.trim().split(/\s+/);
+        updateData.firstName = nameParts[0] || "";
+        updateData.lastName = nameParts.slice(1).join(" ") || "";
+        updateData.name = payload.name.trim();
+    }
+    if (payload.firstName !== undefined)
+        updateData.firstName = payload.firstName;
+    if (payload.lastName !== undefined)
+        updateData.lastName = payload.lastName;
+    if (payload.email) {
+        const existingEmail = yield user_model_1.UserModel.findOne({ email: payload.email });
+        if (existingEmail && String(existingEmail._id) !== String(userId)) {
+            throw new AppError_1.default(http_status_1.default.BAD_REQUEST, "Email is already in use.");
+        }
+        updateData.email = payload.email;
+    }
+    if (payload.subscriptionType)
+        updateData.subscriptionType = payload.subscriptionType;
+    if (payload.subscriptionStatus)
+        updateData.subscriptionStatus = payload.subscriptionStatus;
+    if (payload.status)
+        updateData.status = payload.status;
+    const result = yield user_model_1.UserModel.findByIdAndUpdate(userId, updateData, { new: true }).select('-password -isVerify');
+    return result;
+});
+const upgradeUserSubscriptionDB = (userId, subscriptionType) => __awaiter(void 0, void 0, void 0, function* () {
+    const user = yield (0, exports.findUserById)(userId);
+    if (!user) {
+        throw new AppError_1.default(http_status_1.default.NOT_FOUND, "User not found.");
+    }
+    if (user.role === "admin") {
+        throw new AppError_1.default(http_status_1.default.FORBIDDEN, "Cannot update an admin user.");
+    }
+    const endDate = new Date();
+    endDate.setDate(endDate.getDate() + 30);
+    const result = yield user_model_1.UserModel.findByIdAndUpdate(userId, {
+        subscriptionType,
+        subscriptionStatus: "active",
+        subscriptionEndDate: endDate,
+    }, { new: true }).select('-password -isVerify');
+    return result;
+});
+const extendUserSubscriptionDB = (userId, days) => __awaiter(void 0, void 0, void 0, function* () {
+    const user = yield (0, exports.findUserById)(userId);
+    if (!user) {
+        throw new AppError_1.default(http_status_1.default.NOT_FOUND, "User not found.");
+    }
+    if (user.role === "admin") {
+        throw new AppError_1.default(http_status_1.default.FORBIDDEN, "Cannot update an admin user.");
+    }
+    const baseDate = user.subscriptionEndDate && user.subscriptionEndDate > new Date()
+        ? new Date(user.subscriptionEndDate)
+        : new Date();
+    baseDate.setDate(baseDate.getDate() + days);
+    const result = yield user_model_1.UserModel.findByIdAndUpdate(userId, {
+        subscriptionEndDate: baseDate,
+        subscriptionStatus: user.subscriptionStatus === "expired" ? "active" : user.subscriptionStatus,
+    }, { new: true }).select('-password -isVerify');
+    return result;
+});
+const toggleUserBlockDB = (userId) => __awaiter(void 0, void 0, void 0, function* () {
+    const user = yield (0, exports.findUserById)(userId);
+    if (!user) {
+        throw new AppError_1.default(http_status_1.default.NOT_FOUND, "User not found.");
+    }
+    if (user.role === "admin") {
+        throw new AppError_1.default(http_status_1.default.FORBIDDEN, "Cannot change status of an admin user.");
+    }
+    const nextStatus = user.status === "blocked" ? "active" : "blocked";
+    const result = yield user_model_1.UserModel.findByIdAndUpdate(userId, { status: nextStatus }, { new: true }).select('-password -isVerify');
+    return result;
 });
 exports.userService = {
     createUserDB,
@@ -214,7 +316,11 @@ exports.userService = {
     changePasswordDB,
     updateUserDB,
     myProfileDB,
-    allUserDB
+    allUserDB,
+    adminUpdateUserDB,
+    upgradeUserSubscriptionDB,
+    extendUserSubscriptionDB,
+    toggleUserBlockDB,
 };
 const userDelete = (id) => __awaiter(void 0, void 0, void 0, function* () {
     yield user_model_1.UserModel.findByIdAndUpdate(id, { isDeleted: true });

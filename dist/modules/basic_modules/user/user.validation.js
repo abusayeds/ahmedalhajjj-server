@@ -48,9 +48,36 @@ const updateUserValidation = zod_1.z.object({
         firstName: zod_1.z.string().optional(),
         lastName: zod_1.z.string().optional(),
         name: zod_1.z.string().optional(),
+        email: zod_1.z.string().email().optional(),
         phone: zod_1.z.string().optional(),
         address: zod_1.z.string().optional(),
         image: zod_1.z.string().optional(),
+    }),
+});
+const adminUpdateUserValidation = zod_1.z.object({
+    body: zod_1.z.object({
+        userId: zod_1.z.string({ required_error: "userId is required!" }),
+        name: zod_1.z.string().optional(),
+        firstName: zod_1.z.string().optional(),
+        lastName: zod_1.z.string().optional(),
+        email: zod_1.z.string().email().optional(),
+        subscriptionType: zod_1.z.enum(["VIP", "Forex", "Crypto"]).optional(),
+        subscriptionStatus: zod_1.z.enum(["active", "trial", "expired", "cancelled", "none"]).optional(),
+        status: zod_1.z.enum(["active", "blocked"]).optional(),
+    }),
+});
+const upgradeSubscriptionValidation = zod_1.z.object({
+    body: zod_1.z.object({
+        userId: zod_1.z.string({ required_error: "userId is required!" }),
+        subscriptionType: zod_1.z.enum(["VIP", "Forex", "Crypto"], {
+            required_error: "subscriptionType is required!",
+        }),
+    }),
+});
+const extendSubscriptionValidation = zod_1.z.object({
+    body: zod_1.z.object({
+        userId: zod_1.z.string({ required_error: "userId is required!" }),
+        days: zod_1.z.coerce.number().min(1, "days must be at least 1"),
     }),
 });
 const resetPassWordValidation = zod_1.z.object({
@@ -74,4 +101,7 @@ exports.userValidation = {
     loginValidation,
     resetPassWordValidation,
     updateUserValidation,
+    adminUpdateUserValidation,
+    upgradeSubscriptionValidation,
+    extendSubscriptionValidation,
 };

@@ -64,6 +64,11 @@ const UserSchema = new mongoose_1.Schema({
         enum: ["admin", "user"],
         default: "user",
     },
+    status: {
+        type: String,
+        enum: ["active", "blocked"],
+        default: "active",
+    },
     isDeleted: {
         type: Boolean,
         default: false,
@@ -90,6 +95,7 @@ const UserSchema = new mongoose_1.Schema({
     subscriptionEndDate: { type: Date },
     freeTrialEndDate: { type: Date },
     hasUsedFreeAccess: { type: Boolean, default: false },
+    promoAccessUsed: { type: Boolean, default: false },
 }, { timestamps: true });
 UserSchema.pre("save", function (next) {
     if ((this.firstName || this.lastName) && !this.name) {

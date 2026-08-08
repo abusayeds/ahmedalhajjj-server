@@ -210,7 +210,21 @@ const updateUserDB = async (payload: IUser, file: any, userId: string) => {
       "User not found.",
     );
   }
-  const updateData: any = {};
+
+  if (payload.email && payload.email !== user.email) {
+    const existingEmail = await UserModel.findOne({ email: payload.email });
+    if (existingEmail && String(existingEmail._id) !== String(userId)) {
+      throw new AppError(httpStatus.BAD_REQUEST, "Email is already in use.");
+    }
+  }
+
+  const updateData: any = { ...payload };
+  if (payload.name && !payload.firstName && !payload.lastName) {
+    const nameParts = payload.name.trim().split(/\s+/);
+    updateData.firstName = nameParts[0] || "";
+    updateData.lastName = nameParts.slice(1).join(" ") || "";
+    updateData.name = payload.name.trim();
+  }
   if (file) {
     const imagePath = `public\\images\\${file.filename}`;
     const publicFileURL = `/images/${file.filename}`;
@@ -219,7 +233,7 @@ const updateUserDB = async (payload: IUser, file: any, userId: string) => {
       publicFileURL: publicFileURL,
     };
   }
-  const result = await UserModel.findByIdAndUpdate(userId, { ...payload, ...updateData }, { new: true });
+  const result = await UserModel.findByIdAndUpdate(userId, updateData, { new: true });
   const updateUser = { ...result.toObject ? result.toObject() : result };
   delete updateUser.password;
   delete updateUser.isVerify;
@@ -237,8 +251,16 @@ const myProfileDB = async (userId: string) => {
   return user
 }
 const allUserDB = async (query: Record<string, unknown>,) => {
-  const userQuery = new queryBuilder(UserModel.find({ role: "user" }).select('-password -isVerify'), query).sort()
-  const { totalData } = await userQuery.paginate(UserModel.find({ role: "user" }))
+  const baseFilter: Record<string, unknown> = { role: "user", isDeleted: false };
+  if (query.subscriptionType) {
+    baseFilter.subscriptionType = query.subscriptionType;
+  }
+
+  const userQuery = new queryBuilder(UserModel.find(baseFilter).select('-password -isVerify'), query)
+    .search(["firstName", "lastName", "name", "email"] as any)
+    .filter()
+    .sort()
+  const { totalData } = await userQuery.paginate(UserModel.find(baseFilter))
   const user = await userQuery.modelQuery.exec()
   const currentPage = Number(query?.page) || 1;
   const limit = Number(query.limit) || 10;
@@ -249,6 +271,114 @@ const allUserDB = async (query: Record<string, unknown>,) => {
   });
   return { pagination, user, };
 }
+
+const adminUpdateUserDB = async (userId: string, payload: Partial<IUser>) => {
+  const user = await findUserById(userId);
+  if (!user) {
+    throw new AppError(httpStatus.NOT_FOUND, "User not found.");
+  }
+  if (user.role === "admin") {
+    throw new AppError(httpStatus.FORBIDDEN, "Cannot update an admin user.");
+  }
+
+  const updateData: Record<string, unknown> = {};
+
+  if (payload.name) {
+    const nameParts = payload.name.trim().split(/\s+/);
+    updateData.firstName = nameParts[0] || "";
+    updateData.lastName = nameParts.slice(1).join(" ") || "";
+    updateData.name = payload.name.trim();
+  }
+  if (payload.firstName !== undefined) updateData.firstName = payload.firstName;
+  if (payload.lastName !== undefined) updateData.lastName = payload.lastName;
+  if (payload.email) {
+    const existingEmail = await UserModel.findOne({ email: payload.email });
+    if (existingEmail && String(existingEmail._id) !== String(userId)) {
+      throw new AppError(httpStatus.BAD_REQUEST, "Email is already in use.");
+    }
+    updateData.email = payload.email;
+  }
+  if (payload.subscriptionType) updateData.subscriptionType = payload.subscriptionType;
+  if (payload.subscriptionStatus) updateData.subscriptionStatus = payload.subscriptionStatus;
+  if (payload.status) updateData.status = payload.status;
+
+  const result = await UserModel.findByIdAndUpdate(userId, updateData, { new: true }).select('-password -isVerify');
+  return result;
+};
+
+const upgradeUserSubscriptionDB = async (
+  userId: string,
+  subscriptionType: "VIP" | "Forex" | "Crypto",
+) => {
+  const user = await findUserById(userId);
+  if (!user) {
+    throw new AppError(httpStatus.NOT_FOUND, "User not found.");
+  }
+  if (user.role === "admin") {
+    throw new AppError(httpStatus.FORBIDDEN, "Cannot update an admin user.");
+  }
+
+  const endDate = new Date();
+  endDate.setDate(endDate.getDate() + 30);
+
+  const result = await UserModel.findByIdAndUpdate(
+    userId,
+    {
+      subscriptionType,
+      subscriptionStatus: "active",
+      subscriptionEndDate: endDate,
+    },
+    { new: true },
+  ).select('-password -isVerify');
+
+  return result;
+};
+
+const extendUserSubscriptionDB = async (userId: string, days: number) => {
+  const user = await findUserById(userId);
+  if (!user) {
+    throw new AppError(httpStatus.NOT_FOUND, "User not found.");
+  }
+  if (user.role === "admin") {
+    throw new AppError(httpStatus.FORBIDDEN, "Cannot update an admin user.");
+  }
+
+  const baseDate =
+    user.subscriptionEndDate && user.subscriptionEndDate > new Date()
+      ? new Date(user.subscriptionEndDate)
+      : new Date();
+  baseDate.setDate(baseDate.getDate() + days);
+
+  const result = await UserModel.findByIdAndUpdate(
+    userId,
+    {
+      subscriptionEndDate: baseDate,
+      subscriptionStatus: user.subscriptionStatus === "expired" ? "active" : user.subscriptionStatus,
+    },
+    { new: true },
+  ).select('-password -isVerify');
+
+  return result;
+};
+
+const toggleUserBlockDB = async (userId: string) => {
+  const user = await findUserById(userId);
+  if (!user) {
+    throw new AppError(httpStatus.NOT_FOUND, "User not found.");
+  }
+  if (user.role === "admin") {
+    throw new AppError(httpStatus.FORBIDDEN, "Cannot change status of an admin user.");
+  }
+
+  const nextStatus = user.status === "blocked" ? "active" : "blocked";
+  const result = await UserModel.findByIdAndUpdate(
+    userId,
+    { status: nextStatus },
+    { new: true },
+  ).select('-password -isVerify');
+
+  return result;
+};
 
 
 
@@ -264,7 +394,11 @@ export const userService = {
   changePasswordDB,
   updateUserDB,
   myProfileDB,
-  allUserDB
+  allUserDB,
+  adminUpdateUserDB,
+  upgradeUserSubscriptionDB,
+  extendUserSubscriptionDB,
+  toggleUserBlockDB,
 }
 
 

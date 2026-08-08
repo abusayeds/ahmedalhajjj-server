@@ -36,20 +36,23 @@ router.post("/verify-forgot-otp", userController.verifyForgotPasswordOTP);
 router.post("/reset-password", zodValidation(userValidation.resetPassWordValidation), userController.resetPassword);
 
 // 7. Change Password
-router.post("/change-password", userController.changePassword);
+router.post("/change-password", authMiddleware(role.admin, role.user), userController.changePassword);
 
 // 8. My Profile
-router.get("/my-profile", authMiddleware(role.admin), userController.myProfile);
-router.get("/profile", authMiddleware(role.admin), userController.myProfile);
+router.get("/my-profile", authMiddleware(role.admin , role.user), userController.myProfile);
+router.get("/profile", authMiddleware(role.admin , role.user), userController.myProfile);
 
 // 9. Update Profile
-router.post("/update", zodValidation(userValidation.updateUserValidation), userController.updateUser);
-router.patch("/update-profile", zodValidation(userValidation.updateUserValidation), userController.updateUser);
-router.post("/update-profile", zodValidation(userValidation.updateUserValidation), userController.updateUser);
+router.post("/update", authMiddleware(role.admin, role.user), zodValidation(userValidation.updateUserValidation), userController.updateUser);
+router.patch("/update-profile", authMiddleware(role.admin, role.user), zodValidation(userValidation.updateUserValidation), userController.updateUser);
+router.post("/update-profile", authMiddleware(role.admin, role.user), zodValidation(userValidation.updateUserValidation), userController.updateUser);
 
 // User Management
 router.get("/all-user", authMiddleware(role.admin), userController.getAllUsers);
 router.post("/block-user", authMiddleware(role.admin), BlockUser);
 router.post("/delete", authMiddleware(role.admin), deleteUser);
+router.post("/admin-update-user", authMiddleware(role.admin), zodValidation(userValidation.adminUpdateUserValidation), userController.adminUpdateUser);
+router.post("/upgrade-subscription", authMiddleware(role.admin), zodValidation(userValidation.upgradeSubscriptionValidation), userController.upgradeUserSubscription);
+router.post("/extend-subscription", authMiddleware(role.admin), zodValidation(userValidation.extendSubscriptionValidation), userController.extendUserSubscription);
 
 export const UserRoutes = router;
