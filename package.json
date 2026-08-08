@@ -11,6 +11,11 @@
     "lint:fix": "npx eslint src --fix",
     "prettier": "prettier --ignore-path .gitignore --write \"./src/**/*.+(js|ts|json)\"",
     "prettier:fix": "npx prettier --write src",
+    "postman:generate": "node scripts/generate-postman-collection.js",
+    "postman:sync": "node scripts/sync-postman-collection.js",
+    "postman:watch": "node scripts/sync-postman-collection.js --watch",
+    "postman:push": "npm run postman:generate && npm run postman:sync",
+    "seed:signals": "npx ts-node src/scripts/seed-signals.ts",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
