@@ -28,7 +28,7 @@ export const seedSubscriptions = async () => {
         includesMarketSentiment: true,
         includesEconomicCalendar: true,
         support: "premium",
-        signalTypes: ["scalp", "swing", "long-term"],
+        signalTypes: ["Scalp", "Swing", "Long-term"],
         isActive: true,
       },
       {
@@ -52,7 +52,7 @@ export const seedSubscriptions = async () => {
         includesMarketSentiment: false,
         includesEconomicCalendar: false,
         support: "advanced",
-        signalTypes: ["scalp", "swing"],
+        signalTypes: ["Scalp", "Swing"],
         isActive: true,
       },
       {
@@ -76,7 +76,7 @@ export const seedSubscriptions = async () => {
         includesMarketSentiment: false,
         includesEconomicCalendar: false,
         support: "advanced",
-        signalTypes: ["scalp", "swing"],
+        signalTypes: ["Scalp", "Swing"],
         isActive: true,
       },
     ];

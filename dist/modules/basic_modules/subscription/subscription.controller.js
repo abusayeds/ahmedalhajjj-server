@@ -17,7 +17,10 @@ const catchAsync_1 = __importDefault(require("../../../utils/catchAsync"));
 const sendResponse_1 = __importDefault(require("../../../utils/sendResponse"));
 const subscription_service_1 = require("./subscription.service");
 exports.getSubscriptions = (0, catchAsync_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    const subscriptions = yield (0, subscription_service_1.getAllSubscriptions)();
+    var _a;
+    const isAdmin = ((_a = req.user) === null || _a === void 0 ? void 0 : _a.role) === "admin";
+    const includeDisabled = req.query.includeDisabled === "true" || isAdmin;
+    const subscriptions = yield (0, subscription_service_1.getAllSubscriptions)(includeDisabled);
     (0, sendResponse_1.default)(res, {
         statusCode: 200,
         success: true,
@@ -108,7 +111,7 @@ exports.updateTrialConfigHandler = (0, catchAsync_1.default)((req, res) => __awa
 }));
 exports.getUserSubscriptions = (0, catchAsync_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
     var _a;
-    const userId = (_a = req.user) === null || _a === void 0 ? void 0 : _a.id;
+    const userId = String(((_a = req.user) === null || _a === void 0 ? void 0 : _a._id) || "");
     if (!userId) {
         return (0, sendResponse_1.default)(res, {
             statusCode: 401,
@@ -127,7 +130,7 @@ exports.getUserSubscriptions = (0, catchAsync_1.default)((req, res) => __awaiter
 }));
 exports.getCurrentSubscription = (0, catchAsync_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
     var _a;
-    const userId = (_a = req.user) === null || _a === void 0 ? void 0 : _a.id;
+    const userId = String(((_a = req.user) === null || _a === void 0 ? void 0 : _a._id) || "");
     if (!userId) {
         return (0, sendResponse_1.default)(res, {
             statusCode: 401,
@@ -148,7 +151,7 @@ exports.getCurrentSubscription = (0, catchAsync_1.default)((req, res) => __await
 }));
 exports.getTrialStatus = (0, catchAsync_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
     var _a;
-    const userId = (_a = req.user) === null || _a === void 0 ? void 0 : _a.id;
+    const userId = (_a = req.user) === null || _a === void 0 ? void 0 : _a._id;
     if (!userId) {
         return (0, sendResponse_1.default)(res, {
             statusCode: 401,
@@ -167,8 +170,8 @@ exports.getTrialStatus = (0, catchAsync_1.default)((req, res) => __awaiter(void 
 }));
 exports.initiatePurchase = (0, catchAsync_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
     var _a;
-    const userId = (_a = req.user) === null || _a === void 0 ? void 0 : _a.id;
-    const { subscriptionId, isFreeTrial } = req.body;
+    const userId = String(((_a = req.user) === null || _a === void 0 ? void 0 : _a._id) || "");
+    const { subscriptionId, isFreeTrial, couponCode, billingCycle } = req.body;
     if (!userId) {
         return (0, sendResponse_1.default)(res, {
             statusCode: 401,
@@ -185,25 +188,28 @@ exports.initiatePurchase = (0, catchAsync_1.default)((req, res) => __awaiter(voi
             data: null,
         });
     }
-    const trialStatus = yield (0, subscription_service_1.getUserTrialStatus)(userId);
-    if (isFreeTrial && trialStatus.hasUsedFreeTrial) {
-        return (0, sendResponse_1.default)(res, {
-            statusCode: 400,
-            success: false,
-            message: "You have already used your free trial",
-            data: null,
-        });
+    if (isFreeTrial) {
+        const eligibility = yield (0, subscription_service_1.getFreeTrialEligibility)(userId);
+        if (!eligibility.canStart) {
+            return (0, sendResponse_1.default)(res, {
+                statusCode: 400,
+                success: false,
+                message: eligibility.reason || "Free trial is not available for this account.",
+                data: eligibility,
+            });
+        }
     }
-    const purchase = yield (0, subscription_service_1.createPurchase)({
-        userId,
-        subscriptionId,
-        isFreeTrial: isFreeTrial || false,
-        paymentStatus: "pending",
+    const result = yield (0, subscription_service_1.initiateSubscriptionPurchase)(userId, subscriptionId, {
+        isFreeTrial: Boolean(isFreeTrial),
+        couponCode,
+        billingCycle,
     });
     (0, sendResponse_1.default)(res, {
         statusCode: 201,
         success: true,
-        message: "Purchase initiated",
-        data: purchase,
+        message: result.paymentRequired
+            ? "Purchase initiated. Complete Stripe payment, then webhook will activate subscription."
+            : "Subscription activated successfully.",
+        data: result,
     });
 }));

@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import catchAsync from "../../../utils/catchAsync";
 import sendResponse from "../../../utils/sendResponse";
+import { AuthRequest } from "../../../middlewares/auth";
 import {
   getAllSubscriptions,
   getSubscriptionById,
@@ -11,12 +12,15 @@ import {
   updateTrialConfig,
   getUserPurchases,
   getUserActiveSubscription,
-  createPurchase,
   getUserTrialStatus,
+  initiateSubscriptionPurchase,
+  getFreeTrialEligibility,
 } from "./subscription.service";
 
 export const getSubscriptions = catchAsync(async (req: Request, res: Response) => {
-  const subscriptions = await getAllSubscriptions();
+  const isAdmin = (req as any).user?.role === "admin";
+  const includeDisabled = req.query.includeDisabled === "true" || isAdmin;
+  const subscriptions = await getAllSubscriptions(includeDisabled);
   sendResponse(res, {
     statusCode: 200,
     success: true,
@@ -131,8 +135,8 @@ export const updateTrialConfigHandler = catchAsync(
 );
 
 export const getUserSubscriptions = catchAsync(
-  async (req: Request, res: Response) => {
-    const userId = (req as any).user?.id;
+  async (req: AuthRequest, res: Response) => {
+    const userId = String(req.user?._id || "");
 
     if (!userId) {
       return sendResponse(res, {
@@ -154,8 +158,8 @@ export const getUserSubscriptions = catchAsync(
 );
 
 export const getCurrentSubscription = catchAsync(
-  async (req: Request, res: Response) => {
-    const userId = (req as any).user?.id;
+  async (req: AuthRequest, res: Response) => {
+    const userId = String(req.user?._id || "");
 
     if (!userId) {
       return sendResponse(res, {
@@ -178,8 +182,8 @@ export const getCurrentSubscription = catchAsync(
   }
 );
 
-export const getTrialStatus = catchAsync(async (req: Request, res: Response) => {
-  const userId = (req as any).user?.id;
+export const getTrialStatus = catchAsync(async (req: AuthRequest, res: Response) => {
+  const userId = req.user?._id as string;
 
   if (!userId) {
     return sendResponse(res, {
@@ -200,9 +204,9 @@ export const getTrialStatus = catchAsync(async (req: Request, res: Response) => 
 });
 
 export const initiatePurchase = catchAsync(
-  async (req: Request, res: Response) => {
-    const userId = (req as any).user?.id;
-    const { subscriptionId, isFreeTrial } = req.body;
+  async (req: AuthRequest, res: Response) => {
+    const userId = String(req.user?._id || "");
+    const { subscriptionId, isFreeTrial, couponCode, billingCycle } = req.body;
 
     if (!userId) {
       return sendResponse(res, {
@@ -222,29 +226,31 @@ export const initiatePurchase = catchAsync(
       });
     }
 
-    const trialStatus = await getUserTrialStatus(userId);
-
-    if (isFreeTrial && trialStatus.hasUsedFreeTrial) {
-      return sendResponse(res, {
-        statusCode: 400,
-        success: false,
-        message: "You have already used your free trial",
-        data: null,
-      });
+    if (isFreeTrial) {
+      const eligibility = await getFreeTrialEligibility(userId);
+      if (!eligibility.canStart) {
+        return sendResponse(res, {
+          statusCode: 400,
+          success: false,
+          message: eligibility.reason || "Free trial is not available for this account.",
+          data: eligibility,
+        });
+      }
     }
 
-    const purchase = await createPurchase({
-      userId,
-      subscriptionId,
-      isFreeTrial: isFreeTrial || false,
-      paymentStatus: "pending",
+    const result = await initiateSubscriptionPurchase(userId, subscriptionId, {
+      isFreeTrial: Boolean(isFreeTrial),
+      couponCode,
+      billingCycle,
     });
 
     sendResponse(res, {
       statusCode: 201,
       success: true,
-      message: "Purchase initiated",
-      data: purchase,
+      message: result.paymentRequired
+        ? "Purchase initiated. Complete Stripe payment, then webhook will activate subscription."
+        : "Subscription activated successfully.",
+      data: result,
     });
   }
 );

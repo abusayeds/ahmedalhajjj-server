@@ -38,7 +38,7 @@ const seedSubscriptions = () => __awaiter(void 0, void 0, void 0, function* () {
                 includesMarketSentiment: true,
                 includesEconomicCalendar: true,
                 support: "premium",
-                signalTypes: ["scalp", "swing", "long-term"],
+                signalTypes: ["Scalp", "Swing", "Long-term"],
                 isActive: true,
             },
             {
@@ -62,7 +62,7 @@ const seedSubscriptions = () => __awaiter(void 0, void 0, void 0, function* () {
                 includesMarketSentiment: false,
                 includesEconomicCalendar: false,
                 support: "advanced",
-                signalTypes: ["scalp", "swing"],
+                signalTypes: ["Scalp", "Swing"],
                 isActive: true,
             },
             {
@@ -86,7 +86,7 @@ const seedSubscriptions = () => __awaiter(void 0, void 0, void 0, function* () {
                 includesMarketSentiment: false,
                 includesEconomicCalendar: false,
                 support: "advanced",
-                signalTypes: ["scalp", "swing"],
+                signalTypes: ["Scalp", "Swing"],
                 isActive: true,
             },
         ];

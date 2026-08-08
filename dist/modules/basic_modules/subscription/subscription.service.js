@@ -8,12 +8,23 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getUserTrialStatus = exports.cancelPurchase = exports.updatePurchaseStatus = exports.createPurchase = exports.getUserActiveSubscription = exports.getUserPurchases = exports.updateTrialConfig = exports.getTrialConfig = exports.deleteSubscriptionPlan = exports.updateSubscriptionPlan = exports.createSubscriptionPlan = exports.getSubscriptionById = exports.getAllSubscriptions = void 0;
+exports.initiateSubscriptionPurchase = exports.getFreeTrialEligibility = exports.getUserTrialStatus = exports.cancelPurchase = exports.updatePurchaseStatus = exports.createPurchase = exports.getUserActiveSubscription = exports.getUserPurchases = exports.updateTrialConfig = exports.getSubscriptionStats = exports.getTrialConfig = exports.deleteSubscriptionPlan = exports.updateSubscriptionPlan = exports.createSubscriptionPlan = exports.getSubscriptionById = exports.getAllSubscriptions = void 0;
 const subscription_model_1 = require("./subscription.model");
+const user_model_1 = require("../user/user.model");
+const coupon_service_1 = require("../coupon/coupon.service");
+const stripe_service_1 = require("../../payment/stripe.service");
+const AppError_1 = __importDefault(require("../../../errors/AppError"));
+const http_status_1 = __importDefault(require("http-status"));
 // Subscription Services
-const getAllSubscriptions = () => __awaiter(void 0, void 0, void 0, function* () {
-    return yield subscription_model_1.SubscriptionModel.find({});
+const getAllSubscriptions = (...args_1) => __awaiter(void 0, [...args_1], void 0, function* (includeDisabled = false) {
+    if (includeDisabled) {
+        return yield subscription_model_1.SubscriptionModel.find({});
+    }
+    return yield subscription_model_1.SubscriptionModel.find({ isActive: { $ne: false } });
 });
 exports.getAllSubscriptions = getAllSubscriptions;
 const getSubscriptionById = (id) => __awaiter(void 0, void 0, void 0, function* () {
@@ -45,9 +56,32 @@ const getTrialConfig = () => __awaiter(void 0, void 0, void 0, function* () {
             trialDuration: "2 Days",
         });
     }
-    return config;
+    const claimedCount = yield user_model_1.UserModel.countDocuments({
+        role: "user",
+        isDeleted: false,
+        promoAccessUsed: true,
+    });
+    const subscriptionStats = yield (0, exports.getSubscriptionStats)();
+    return Object.assign(Object.assign({}, config.toObject()), { claimedCount,
+        subscriptionStats });
 });
 exports.getTrialConfig = getTrialConfig;
+const getSubscriptionStats = () => __awaiter(void 0, void 0, void 0, function* () {
+    const baseFilter = {
+        role: "user",
+        isDeleted: false,
+        status: { $ne: "blocked" },
+        subscriptionStatus: { $in: ["active", "trial"] },
+    };
+    const [vip, forex, crypto, total] = yield Promise.all([
+        user_model_1.UserModel.countDocuments(Object.assign(Object.assign({}, baseFilter), { subscriptionType: "VIP" })),
+        user_model_1.UserModel.countDocuments(Object.assign(Object.assign({}, baseFilter), { subscriptionType: "Forex" })),
+        user_model_1.UserModel.countDocuments(Object.assign(Object.assign({}, baseFilter), { subscriptionType: "Crypto" })),
+        user_model_1.UserModel.countDocuments({ role: "user", isDeleted: false }),
+    ]);
+    return { vip, forex, crypto, total };
+});
+exports.getSubscriptionStats = getSubscriptionStats;
 const updateTrialConfig = (data) => __awaiter(void 0, void 0, void 0, function* () {
     let config = yield subscription_model_1.TrialConfigModel.findOne({});
     if (!config) {
@@ -87,12 +121,18 @@ const cancelPurchase = (purchaseId) => __awaiter(void 0, void 0, void 0, functio
 });
 exports.cancelPurchase = cancelPurchase;
 const getUserTrialStatus = (userId) => __awaiter(void 0, void 0, void 0, function* () {
+    const eligibility = yield (0, exports.getFreeTrialEligibility)(userId);
     const purchase = yield subscription_model_1.PurchaseModel.findOne({
         userId,
         isFreeTrial: true,
+        paymentStatus: "completed",
     }).sort({ createdAt: -1 });
     if (!purchase) {
-        return { hasUsedFreeTrial: false };
+        return {
+            hasUsedFreeTrial: eligibility.hasUsedFreeTrial,
+            canStartFreeTrial: eligibility.canStart,
+            reason: eligibility.reason,
+        };
     }
     const now = new Date();
     const trialEnded = purchase.freeTrialEndDate && purchase.freeTrialEndDate < now;
@@ -100,6 +140,240 @@ const getUserTrialStatus = (userId) => __awaiter(void 0, void 0, void 0, functio
         hasUsedFreeTrial: true,
         isTrialActive: !trialEnded,
         trialEndDate: purchase.freeTrialEndDate,
+        canStartFreeTrial: eligibility.canStart,
+        reason: eligibility.reason,
     };
 });
 exports.getUserTrialStatus = getUserTrialStatus;
+const getFreeTrialEligibility = (userId) => __awaiter(void 0, void 0, void 0, function* () {
+    const user = yield user_model_1.UserModel.findById(userId);
+    if (!user) {
+        throw new AppError_1.default(http_status_1.default.NOT_FOUND, "User not found.");
+    }
+    const config = yield (0, exports.getTrialConfig)();
+    const trialPurchase = yield subscription_model_1.PurchaseModel.findOne({
+        userId,
+        isFreeTrial: true,
+        paymentStatus: "completed",
+    });
+    const hasUsedFreeTrial = Boolean(trialPurchase);
+    const activePaidPurchase = yield subscription_model_1.PurchaseModel.findOne({
+        userId,
+        isFreeTrial: false,
+        paymentStatus: "completed",
+        isActive: true,
+        endDate: { $gte: new Date() },
+    });
+    const hasActivePaidSubscription = Boolean(activePaidPurchase) ||
+        (user.subscriptionStatus === "active" &&
+            Boolean(user.subscriptionEndDate) &&
+            new Date(user.subscriptionEndDate) >= new Date());
+    if (hasUsedFreeTrial) {
+        return {
+            canStart: false,
+            reason: "You have already used your free trial on this account.",
+            hasUsedFreeTrial: true,
+            hasActivePaidSubscription,
+            hasUsedFreeAccess: user.hasUsedFreeAccess,
+        };
+    }
+    if (hasActivePaidSubscription) {
+        return {
+            canStart: false,
+            reason: "You already have an active paid subscription. Free trial is available only before your first paid plan or after it expires.",
+            hasUsedFreeTrial: false,
+            hasActivePaidSubscription: true,
+            hasUsedFreeAccess: user.hasUsedFreeAccess,
+        };
+    }
+    const promoAvailable = config.promoOn && (config.claimedCount || 0) < (config.promoLimit || 0);
+    if (!config.trialOn && !promoAvailable) {
+        return {
+            canStart: false,
+            reason: "Free trial is currently unavailable.",
+            hasUsedFreeTrial: false,
+            hasActivePaidSubscription: false,
+            hasUsedFreeAccess: user.hasUsedFreeAccess,
+        };
+    }
+    return {
+        canStart: true,
+        reason: null,
+        hasUsedFreeTrial: false,
+        hasActivePaidSubscription: false,
+        hasUsedFreeAccess: user.hasUsedFreeAccess,
+        promoAvailable,
+        trialOn: config.trialOn,
+    };
+});
+exports.getFreeTrialEligibility = getFreeTrialEligibility;
+const calculateDiscountedAmount = (price, coupon) => {
+    if (!coupon)
+        return price;
+    if (coupon.discountType === "fixed") {
+        return Math.max(0, price - Number(coupon.discount));
+    }
+    return Math.max(0, price * (1 - Number(coupon.discount) / 100));
+};
+const parseDurationDays = (duration) => {
+    const lower = duration.toLowerCase();
+    const monthMatch = lower.match(/(\d+)\s*month/);
+    if (monthMatch)
+        return parseInt(monthMatch[1], 10) * 30;
+    const dayMatch = lower.match(/(\d+)\s*day/);
+    if (dayMatch)
+        return parseInt(dayMatch[1], 10);
+    return 2;
+};
+const resolveTrialAccess = (userId) => __awaiter(void 0, void 0, void 0, function* () {
+    const config = yield (0, exports.getTrialConfig)();
+    const eligibility = yield (0, exports.getFreeTrialEligibility)(userId);
+    if (!eligibility.canStart) {
+        throw new AppError_1.default(http_status_1.default.BAD_REQUEST, eligibility.reason || "Free trial is not available for this account.");
+    }
+    const promoClaimedCount = yield user_model_1.UserModel.countDocuments({
+        role: "user",
+        isDeleted: false,
+        promoAccessUsed: true,
+    });
+    if (config.promoOn && promoClaimedCount < config.promoLimit) {
+        return {
+            days: parseDurationDays(config.promoDuration),
+            isPromo: true,
+            accessLabel: "promo",
+        };
+    }
+    if (!config.trialOn) {
+        throw new AppError_1.default(http_status_1.default.BAD_REQUEST, "Free trial is currently unavailable.");
+    }
+    return {
+        days: parseDurationDays(config.trialDuration),
+        isPromo: false,
+        accessLabel: "trial",
+    };
+});
+const initiateSubscriptionPurchase = (userId_1, subscriptionId_1, ...args_1) => __awaiter(void 0, [userId_1, subscriptionId_1, ...args_1], void 0, function* (userId, subscriptionId, options = {}) {
+    const normalizedUserId = String(userId);
+    const normalizedSubscriptionId = String(subscriptionId);
+    const subscription = yield subscription_model_1.SubscriptionModel.findById(normalizedSubscriptionId);
+    if (!subscription || subscription.isActive === false) {
+        throw new AppError_1.default(http_status_1.default.NOT_FOUND, "Subscription plan not found or inactive.");
+    }
+    let coupon = null;
+    if (options.couponCode) {
+        try {
+            coupon = yield (0, coupon_service_1.validateAndApplyCoupon)(options.couponCode);
+            if (coupon.applicablePlans &&
+                coupon.applicablePlans.length > 0 &&
+                !coupon.applicablePlans.includes(subscription.name)) {
+                throw new AppError_1.default(http_status_1.default.BAD_REQUEST, `Coupon is not applicable to ${subscription.name} plan.`);
+            }
+        }
+        catch (error) {
+            throw new AppError_1.default(http_status_1.default.BAD_REQUEST, error.message || "Invalid coupon code.");
+        }
+    }
+    const subscriptionName = subscription.name;
+    const billingCycle = options.billingCycle || "monthly";
+    const endDate = new Date();
+    endDate.setMonth(endDate.getMonth() + 1);
+    if (options.isFreeTrial) {
+        const trialAccess = yield resolveTrialAccess(normalizedUserId);
+        const trialEndDate = new Date();
+        trialEndDate.setDate(trialEndDate.getDate() + trialAccess.days);
+        yield subscription_model_1.PurchaseModel.updateMany({ userId: normalizedUserId, isActive: true }, { $set: { isActive: false } });
+        const purchase = yield subscription_model_1.PurchaseModel.create({
+            userId: normalizedUserId,
+            subscriptionId: normalizedSubscriptionId,
+            subscriptionName,
+            isFreeTrial: true,
+            paymentStatus: "completed",
+            isActive: true,
+            amount: 0,
+            startDate: new Date(),
+            endDate: trialEndDate,
+            freeTrialEndDate: trialEndDate,
+            billingCycle,
+        });
+        yield user_model_1.UserModel.findByIdAndUpdate(normalizedUserId, {
+            subscriptionType: subscriptionName,
+            subscriptionStatus: "trial",
+            subscriptionEndDate: trialEndDate,
+            freeTrialEndDate: trialEndDate,
+            hasUsedFreeAccess: true,
+            promoAccessUsed: trialAccess.isPromo,
+            currentSubscription: purchase._id,
+        });
+        return {
+            purchase,
+            checkoutUrl: null,
+            sessionId: null,
+            finalAmount: 0,
+            couponApplied: null,
+            paymentRequired: false,
+            accessType: trialAccess.accessLabel,
+            trialDays: trialAccess.days,
+            nextStep: trialAccess.isPromo
+                ? `Promo access activated for ${trialAccess.days} days.`
+                : `Free trial activated for ${trialAccess.days} days.`,
+        };
+    }
+    const finalAmount = calculateDiscountedAmount(subscription.price, coupon);
+    if (finalAmount === 0) {
+        yield subscription_model_1.PurchaseModel.updateMany({ userId: normalizedUserId, isActive: true }, { $set: { isActive: false } });
+    }
+    const purchase = yield subscription_model_1.PurchaseModel.create({
+        userId: normalizedUserId,
+        subscriptionId: normalizedSubscriptionId,
+        subscriptionName,
+        isFreeTrial: false,
+        paymentStatus: finalAmount === 0 ? "completed" : "pending",
+        isActive: finalAmount === 0,
+        amount: finalAmount,
+        startDate: new Date(),
+        endDate,
+        billingCycle,
+    });
+    if (finalAmount === 0) {
+        yield user_model_1.UserModel.findByIdAndUpdate(normalizedUserId, {
+            subscriptionType: subscriptionName,
+            subscriptionStatus: "active",
+            subscriptionEndDate: endDate,
+            currentSubscription: purchase._id,
+        });
+        if (coupon && options.couponCode) {
+            coupon.used = (coupon.used || 0) + 1;
+            if (coupon.used >= coupon.limit) {
+                coupon.status = "Exhausted";
+            }
+            yield coupon.save();
+        }
+        return {
+            purchase,
+            checkoutUrl: null,
+            sessionId: null,
+            finalAmount,
+            couponApplied: (coupon === null || coupon === void 0 ? void 0 : coupon.code) || null,
+            paymentRequired: false,
+            nextStep: "Subscription activated immediately (100% coupon discount).",
+        };
+    }
+    const session = yield (0, stripe_service_1.createCheckoutSession)({
+        userId: normalizedUserId,
+        subscriptionId: normalizedSubscriptionId,
+        subscriptionName,
+        amount: finalAmount,
+        purchaseId: String(purchase._id),
+        couponCode: options.couponCode,
+    });
+    return {
+        purchase,
+        checkoutUrl: session.url,
+        sessionId: session.id,
+        finalAmount,
+        couponApplied: (coupon === null || coupon === void 0 ? void 0 : coupon.code) || null,
+        paymentRequired: true,
+        nextStep: "Complete payment on Stripe checkout URL, then Stripe webhook will activate the subscription.",
+    };
+});
+exports.initiateSubscriptionPurchase = initiateSubscriptionPurchase;
