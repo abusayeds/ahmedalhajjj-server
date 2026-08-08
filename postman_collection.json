@@ -1,11 +1,21 @@
 {
   "info": {
-    "_postman_id": "ahmedalhajjj-api-collection-v3",
-    "name": "AhmedAlhajji Trading Platform API Collection",
-    "description": "Complete Postman Collection with Automated Authentication (firstName, lastName, optional phone & address), Subscription Plan Purchase, Stripe Webhook, Coupons, and Trial Management APIs.",
+    "_postman_id": "ahmedalhajjj-mobile-app-api-v1",
+    "name": "AhmedAlhajji Mobile App API (Frontend)",
+    "description": "# Mobile App API Collection (Frontend Developers)\n\n> **Important:** In this project, **Frontend = Mobile App** only.\n> **Dashboard = Admin panel** (separate). Dashboard/Admin APIs are **NOT** in this collection.\n\n## Who is this for?\nGive this file to your **mobile app / frontend developer** so they can see which API belongs to which app screen.\n\n## Base URLs // example\n- Local: `http://localhost:2002/api/v1`\n- Production: change `serverUrl` variable\n\n## Folder → App Screen Map\n| Folder | App Screen / Feature |\n|--------|---------------------|\n| Auth & Onboarding | Sign up, OTP, Login |\n| Password Recovery | Forgot password flow |\n| User Profile | Profile view & edit |\n| Pricing & Plans | Subscription plans list, plan details, trial promo info |\n| Coupon (Checkout) | Validate discount code before payment |\n| Purchase & My Plan | Paywall, Stripe checkout, active subscription |\n| Legal Pages | Privacy, Terms, About (read-only) |\n| Signals (Core App) | Global market hours, all active signals (search/filter/sort/pagination) |\n| Notifications | App notification feed |\n\n## Purchase flow (App)\n1. Login User\n2. Get All Subscription Plans → save `subscriptionId`\n3. Validate Coupon (optional) → e.g. ELITE50 // example\n4. Initiate Purchase → open `checkoutUrl` in app (Stripe)\n5. After Stripe payment, backend webhook activates subscription automatically\n6. Call **Get Current Active Subscription** to refresh UI\n\n## Test user // example\n- email: alex.trader@example.com\n- password: Password123!",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
+    {
+      "key": "serverUrl",
+      "value": "http://localhost:2002",
+      "type": "string"
+    },
+    {
+      "key": "baseUrl",
+      "value": "{{serverUrl}}/api/v1",
+      "type": "string"
+    },
     {
       "key": "accessToken",
       "value": "",
@@ -14,16 +24,6 @@
     {
       "key": "token",
       "value": "",
-      "type": "string"
-    },
-    {
-      "key": "refreshToken",
-      "value": "",
-      "type": "string"
-    },
-    {
-      "key": "role",
-      "value": "user",
       "type": "string"
     },
     {
@@ -38,503 +38,1052 @@
     },
     {
       "key": "userEmail",
-      "value": "user@example.com",
+      "value": "alex.trader@example.com",
+      "type": "string"
+    },
+    {
+      "key": "userId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "subscriptionId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "subscriptionName",
+      "value": "VIP",
+      "type": "string"
+    },
+    {
+      "key": "purchaseId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "couponCode",
+      "value": "ELITE50",
+      "type": "string"
+    },
+    {
+      "key": "signalId",
+      "value": "",
       "type": "string"
     }
   ],
   "item": [
     {
-      "name": "Authentication",
-      "description": "Automated Authentication Folder with 9 Required APIs & Automatic Token/Role Management Scripts.",
+      "name": "Auth & Onboarding",
+      "description": "App screens: Sign Up, OTP Verification, Login",
       "item": [
         {
-          "name": "1. Register User",
+          "name": "Register User",
+          "description": "Screen: Sign Up\n\nBody fields // example:\n- firstName: Alex\n- lastName: Trader\n- email: alex.trader@example.com\n- password: Password123!\n- confirmPassword: Password123!",
           "event": [
             {
               "listen": "test",
               "script": {
+                "type": "text/javascript",
                 "exec": [
-                  "const jsonData = pm.response.json();",
-                  "if (jsonData.data && (jsonData.data.token || jsonData.data.accessToken)) {",
-                  "    const token = jsonData.data.token || jsonData.data.accessToken;",
+                  "const json = pm.response.json();",
+                  "if (json && json.data) {",
+                  "  const token = json.data.token || json.data.accessToken;",
+                  "  if (token) {",
                   "    pm.collectionVariables.set('accessToken', token);",
                   "    pm.collectionVariables.set('token', token);",
-                  "    console.log('AccessToken automatically saved:', token);",
+                  "  }",
+                  "  if (json.data.user) {",
+                  "    if (json.data.user._id) pm.collectionVariables.set('userId', json.data.user._id);",
+                  "    if (json.data.user.email) pm.collectionVariables.set('userEmail', json.data.user.email);",
+                  "  }",
                   "}",
-                  "if (jsonData.data && jsonData.data.email) {",
-                  "    pm.collectionVariables.set('userEmail', jsonData.data.email);",
-                  "}"
-                ],
-                "type": "text/javascript"
+                  "pm.test('Registration token saved', () => pm.expect(pm.collectionVariables.get('accessToken')).to.not.equal(''));"
+                ]
               }
             }
           ],
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"firstName\": \"Alex\",\n  \"lastName\": \"Trader\",\n  \"email\": \"user@example.com\",\n  \"password\": \"Password123!\",\n  \"confirmPassword\": \"Password123!\"\n}"
+              "raw": "{\n  \"firstName\": \"Alex\",\n  \"lastName\": \"Trader\",\n  \"email\": \"alex.trader@example.com\",\n  \"password\": \"Password123!\",\n  \"confirmPassword\": \"Password123!\",\n  \"phone\": \"+8801712345678\",\n  \"address\": \"Dhaka, Bangladesh\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": {
-              "raw": "http://localhost:2002/api/v1/user/register",
-              "protocol": "http",
-              "host": ["localhost"],
-              "port": "2002",
-              "path": ["api", "v1", "user", "register"]
+              "raw": "{{baseUrl}}/user/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "user",
+                "register"
+              ]
             }
           }
         },
         {
-          "name": "2. Verify OTP",
+          "name": "Verify OTP",
+          "description": "Screen: OTP Verification\n\nUse OTP from email/server console. // example otp: 123456",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"otp\": \"123456\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/user/verify-otp",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "user",
+                "verify-otp"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Login User",
+          "description": "Screen: Login\n\nBody // example:\n- email: alex.trader@example.com\n- password: Password123!",
           "event": [
             {
               "listen": "test",
               "script": {
+                "type": "text/javascript",
                 "exec": [
-                  "const jsonData = pm.response.json();",
-                  "if (jsonData.data && (jsonData.data.token || jsonData.data.accessToken)) {",
-                  "    const token = jsonData.data.token || jsonData.data.accessToken;",
+                  "const json = pm.response.json();",
+                  "if (json && json.data) {",
+                  "  const token = json.data.token || json.data.accessToken;",
+                  "  if (token) {",
                   "    pm.collectionVariables.set('accessToken', token);",
                   "    pm.collectionVariables.set('token', token);",
-                  "    console.log('AccessToken automatically saved after OTP:', token);",
+                  "  }",
+                  "  if (json.data.user) {",
+                  "    if (json.data.user._id) pm.collectionVariables.set('userId', json.data.user._id);",
+                  "    if (json.data.user.email) pm.collectionVariables.set('userEmail', json.data.user.email);",
+                  "  }",
                   "}"
-                ],
-                "type": "text/javascript"
+                ]
               }
             }
           ],
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"otp\": \"123456\"\n}"
-            },
-            "url": {
-              "raw": "http://localhost:2002/api/v1/user/verify-otp",
-              "protocol": "http",
-              "host": ["localhost"],
-              "port": "2002",
-              "path": ["api", "v1", "user", "verify-otp"]
-            }
-          }
-        },
-        {
-          "name": "3. Login User",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "const jsonData = pm.response.json();",
-                  "if (jsonData && jsonData.data) {",
-                  "    const token = jsonData.data.token || jsonData.data.accessToken || (jsonData.data.user && jsonData.data.user.token);",
-                  "    if (token) {",
-                  "        pm.collectionVariables.set('accessToken', token);",
-                  "        pm.collectionVariables.set('token', token);",
-                  "        console.log('AccessToken automatically saved on Login:', token);",
-                  "    }",
-                  "    if (jsonData.data.refreshToken) {",
-                  "        pm.collectionVariables.set('refreshToken', jsonData.data.refreshToken);",
-                  "    }",
-                  "    const userRole = (jsonData.data.user && jsonData.data.user.role) || jsonData.data.role || 'user';",
-                  "    pm.collectionVariables.set('role', userRole);",
-                  "    console.log('Role automatically saved on Login:', userRole);",
-                  "}"
-                ],
-                "type": "text/javascript"
+              {
+                "key": "Content-Type",
+                "value": "application/json"
               }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [
-              { "key": "Content-Type", "value": "application/json" }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"email\": \"user@example.com\",\n  \"password\": \"Password123!\"\n}"
-            },
-            "url": {
-              "raw": "http://localhost:2002/api/v1/user/login",
-              "protocol": "http",
-              "host": ["localhost"],
-              "port": "2002",
-              "path": ["api", "v1", "user", "login"]
-            }
-          }
-        },
-        {
-          "name": "4. Resend OTP",
-          "request": {
-            "method": "POST",
-            "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"email\": \"{{userEmail}}\"\n}"
-            },
-            "url": {
-              "raw": "http://localhost:2002/api/v1/user/resend-otp",
-              "protocol": "http",
-              "host": ["localhost"],
-              "port": "2002",
-              "path": ["api", "v1", "user", "resend-otp"]
-            }
-          }
-        },
-        {
-          "name": "5. Forgot Password",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "const jsonData = pm.response.json();",
-                  "if (jsonData && jsonData.data && jsonData.data.token) {",
-                  "    pm.collectionVariables.set('forgotToken', jsonData.data.token);",
-                  "    pm.collectionVariables.set('accessToken', jsonData.data.token);",
-                  "    console.log('Forgot Password Token automatically saved:', jsonData.data.token);",
-                  "}"
-                ],
-                "type": "text/javascript"
+              "raw": "{\n  \"email\": \"{{userEmail}}\",\n  \"password\": \"Password123!\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
               }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [
-              { "key": "Content-Type", "value": "application/json" }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"email\": \"user@example.com\"\n}"
             },
             "url": {
-              "raw": "http://localhost:2002/api/v1/user/forgot-password",
-              "protocol": "http",
-              "host": ["localhost"],
-              "port": "2002",
-              "path": ["api", "v1", "user", "forgot-password"]
+              "raw": "{{baseUrl}}/user/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "user",
+                "login"
+              ]
             }
           }
         },
         {
-          "name": "6. Verify Forgot Password OTP",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "const jsonData = pm.response.json();",
-                  "if (jsonData && jsonData.data && jsonData.data.token) {",
-                  "    pm.collectionVariables.set('verifyForgotToken', jsonData.data.token);",
-                  "    pm.collectionVariables.set('accessToken', jsonData.data.token);",
-                  "    console.log('Verify Forgot OTP Token automatically saved:', jsonData.data.token);",
-                  "}"
-                ],
-                "type": "text/javascript"
+          "name": "Resend OTP",
+          "description": "Screen: OTP Verification (resend button)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
               }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{forgotToken}}" }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"otp\": \"123456\"\n}"
+              "raw": "{\n  \"email\": \"{{userEmail}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": {
-              "raw": "http://localhost:2002/api/v1/user/verify-forgot-otp",
-              "protocol": "http",
-              "host": ["localhost"],
-              "port": "2002",
-              "path": ["api", "v1", "user", "verify-forgot-otp"]
-            }
-          }
-        },
-        {
-          "name": "7. Change Password",
-          "request": {
-            "method": "POST",
-            "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"oldPassword\": \"Password123!\",\n  \"newPassword\": \"NewSecurePass123!\"\n}"
-            },
-            "url": {
-              "raw": "http://localhost:2002/api/v1/user/change-password",
-              "protocol": "http",
-              "host": ["localhost"],
-              "port": "2002",
-              "path": ["api", "v1", "user", "change-password"]
-            }
-          }
-        },
-        {
-          "name": "8. My Profile",
-          "request": {
-            "method": "GET",
-            "header": [
-              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
-            ],
-            "url": {
-              "raw": "http://localhost:2002/api/v1/user/my-profile",
-              "protocol": "http",
-              "host": ["localhost"],
-              "port": "2002",
-              "path": ["api", "v1", "user", "my-profile"]
-            }
-          }
-        },
-        {
-          "name": "9. Update Profile",
-          "request": {
-            "method": "PATCH",
-            "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"firstName\": \"Alex\",\n  \"lastName\": \"Trader Updated\"\n}"
-            },
-            "url": {
-              "raw": "http://localhost:2002/api/v1/user/update-profile",
-              "protocol": "http",
-              "host": ["localhost"],
-              "port": "2002",
-              "path": ["api", "v1", "user", "update-profile"]
+              "raw": "{{baseUrl}}/user/resend-otp",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "user",
+                "resend-otp"
+              ]
             }
           }
         }
       ]
     },
     {
-      "name": "Plan Purchase & Subscriptions",
+      "name": "Password Recovery",
+      "description": "App screens: Forgot Password → OTP → Reset Password",
       "item": [
         {
-          "name": "Get All Subscription Plans",
-          "request": {
-            "method": "GET",
-            "url": {
-              "raw": "http://localhost:2002/api/v1/subscription",
-              "protocol": "http",
-              "host": ["localhost"],
-              "port": "2002",
-              "path": ["api", "v1", "subscription"]
+          "name": "Forgot Password",
+          "description": "Screen: Forgot Password\n\nBody // example: email: alex.trader@example.com",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.data && json.data.token) pm.collectionVariables.set('forgotToken', json.data.token);"
+                ]
+              }
             }
-          }
-        },
-        {
-          "name": "Initiate Plan Purchase (User)",
+          ],
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"subscriptionId\": \"66b3f12a84d29a001a4e1234\",\n  \"isFreeTrial\": false,\n  \"couponCode\": \"ELITE50\"\n}"
+              "raw": "{\n  \"email\": \"{{userEmail}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": {
-              "raw": "http://localhost:2002/api/v1/subscription/purchase/initiate",
-              "protocol": "http",
-              "host": ["localhost"],
-              "port": "2002",
-              "path": ["api", "v1", "subscription", "purchase", "initiate"]
+              "raw": "{{baseUrl}}/user/forgot-password",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "user",
+                "forgot-password"
+              ]
             }
           }
         },
         {
-          "name": "Get User Purchase History",
+          "name": "Verify Forgot Password OTP",
+          "description": "Screen: Forgot Password OTP\n\nBody // example: otp: 123456",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.data && json.data.token) pm.collectionVariables.set('verifyForgotToken', json.data.token);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{forgotToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"otp\": \"123456\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/user/verify-forgot-otp",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "user",
+                "verify-forgot-otp"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Reset Password",
+          "description": "Screen: Set New Password\n\nBody // example:\n- password: NewSecurePass123!\n- confirmPassword: NewSecurePass123!",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{verifyForgotToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"password\": \"NewSecurePass123!\",\n  \"confirmPassword\": \"NewSecurePass123!\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/user/reset-password",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "user",
+                "reset-password"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "User Profile",
+      "description": "App screens: Profile, Edit Profile, Change Password",
+      "item": [
+        {
+          "name": "My Profile",
+          "description": "Screen: Profile / Account\n\nAuth: Bearer token required",
           "request": {
             "method": "GET",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
             ],
             "url": {
-              "raw": "http://localhost:2002/api/v1/subscription/user/purchases",
-              "protocol": "http",
-              "host": ["localhost"],
-              "port": "2002",
-              "path": ["api", "v1", "subscription", "user", "purchases"]
+              "raw": "{{baseUrl}}/user/my-profile",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "user",
+                "my-profile"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update Profile",
+          "description": "Screen: Edit Profile\n\nBody // example:\n- name: Alex Trader Updated\n- phone: +8801712345678",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Alex Trader Updated\",\n  \"firstName\": \"Alex\",\n  \"lastName\": \"Trader Updated\",\n  \"phone\": \"+8801712345678\",\n  \"address\": \"Dhaka, Bangladesh\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/user/update-profile",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "user",
+                "update-profile"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Change Password",
+          "description": "Screen: Change Password\n\nBody // example:\n- oldPassword: Password123!\n- newPassword: NewSecurePass123!\n- confirmPassword: NewSecurePass123!",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"oldPassword\": \"Password123!\",\n  \"newPassword\": \"NewSecurePass123!\",\n  \"confirmPassword\": \"NewSecurePass123!\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/user/change-password",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "user",
+                "change-password"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Pricing & Plans",
+      "description": "App screens: Pricing, Plan Details, Free Trial Promo banner",
+      "item": [
+        {
+          "name": "Get All Subscription Plans",
+          "description": "Screen: Pricing / Choose Plan\n\nReturns VIP, Forex, Crypto plans for the app pricing screen.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.data && json.data.length) {",
+                  "  pm.collectionVariables.set('subscriptionId', json.data[0]._id);",
+                  "  pm.collectionVariables.set('subscriptionName', json.data[0].name);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/subscription",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "subscription"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Subscription Plan By ID",
+          "description": "Screen: Plan Details\n\nUse subscriptionId from previous API or variable {{subscriptionId}}",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/subscription/{{subscriptionId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "subscription",
+                "{{subscriptionId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Trial & Promo Config",
+          "description": "Screen: Pricing banner / First N users free offer\n\nRead-only for app. Shows trial duration, promo limit, claimed count.",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/subscription/trial-config",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "subscription",
+                "trial-config"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Coupon (Checkout)",
+      "description": "App screen: Checkout — apply coupon code before payment",
+      "item": [
+        {
+          "name": "Validate Coupon Code",
+          "description": "Screen: Checkout — Coupon input\n\nBody // example:\n- code: ELITE50\n\nOther example codes: FOREX20, CRYPTO30",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"{{couponCode}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/coupon/validate",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "coupon",
+                "validate"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Purchase & My Plan",
+      "description": "App screens: Paywall, Stripe Payment, My Subscription, Purchase History",
+      "item": [
+        {
+          "name": "Initiate Paid Purchase (With Coupon)",
+          "description": "Screen: Checkout → Pay with Stripe\n\nBody // example:\n- subscriptionId: from Get All Plans\n- isFreeTrial: false\n- couponCode: ELITE50\n- billingCycle: monthly\n\nResponse:\n- checkoutUrl → open in app WebView/browser\n- paymentRequired: true → wait for Stripe, then refresh current subscription",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.data && json.data.purchase) {",
+                  "  if (json.data.purchase._id) pm.collectionVariables.set('purchaseId', json.data.purchase._id);",
+                  "  if (json.data.purchase.userId) pm.collectionVariables.set('userId', json.data.purchase.userId);",
+                  "  if (json.data.purchase.subscriptionId) pm.collectionVariables.set('subscriptionId', json.data.purchase.subscriptionId);",
+                  "  if (json.data.purchase.subscriptionName) pm.collectionVariables.set('subscriptionName', json.data.purchase.subscriptionName);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"subscriptionId\": \"{{subscriptionId}}\",\n  \"isFreeTrial\": false,\n  \"couponCode\": \"{{couponCode}}\",\n  \"billingCycle\": \"monthly\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/subscription/purchase/initiate",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "subscription",
+                "purchase",
+                "initiate"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Initiate Free Trial",
+          "description": "Screen: Start Free Trial button\n\nBody // example:\n- subscriptionId: plan id\n- isFreeTrial: true\n- billingCycle: monthly",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"subscriptionId\": \"{{subscriptionId}}\",\n  \"isFreeTrial\": true,\n  \"billingCycle\": \"monthly\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/subscription/purchase/initiate",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "subscription",
+                "purchase",
+                "initiate"
+              ]
             }
           }
         },
         {
           "name": "Get Current Active Subscription",
+          "description": "Screen: My Plan / Subscription Status\n\nCall after payment success to update app UI.",
           "request": {
             "method": "GET",
             "header": [
-              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
             ],
             "url": {
-              "raw": "http://localhost:2002/api/v1/subscription/user/current",
-              "protocol": "http",
-              "host": ["localhost"],
-              "port": "2002",
-              "path": ["api", "v1", "subscription", "user", "current"]
+              "raw": "{{baseUrl}}/subscription/user/current",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "subscription",
+                "user",
+                "current"
+              ]
             }
           }
         },
         {
-          "name": "Create Subscription Plan (Admin)",
+          "name": "Get User Purchase History",
+          "description": "Screen: Billing History / Past Purchases",
           "request": {
-            "method": "POST",
+            "method": "GET",
             "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
             ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"name\": \"VIP Plan\",\n  \"description\": \"Trading signals subscription plan\",\n  \"price\": 79,\n  \"monthly\": \"79\",\n  \"yearly\": \"699\",\n  \"features\": [\n    \"All signal types: Scalp, Swing, and Long-term\",\n    \"Up to 10 signals per day (Forex & Crypto)\",\n    \"Entry/Exit alerts with Stop-Loss protection\"\n  ],\n  \"isActive\": true\n}"
-            },
             "url": {
-              "raw": "http://localhost:2002/api/v1/subscription/create",
-              "protocol": "http",
-              "host": ["localhost"],
-              "port": "2002",
-              "path": ["api", "v1", "subscription", "create"]
+              "raw": "{{baseUrl}}/subscription/user/purchases",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "subscription",
+                "user",
+                "purchases"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Trial Status",
+          "description": "Screen: Free trial badge / trial remaining days",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/subscription/user/trial-status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "subscription",
+                "user",
+                "trial-status"
+              ]
             }
           }
         }
       ]
     },
     {
-      "name": "Stripe Webhook",
+      "name": "Legal Pages",
+      "description": "App screens: Settings → Privacy Policy, Terms, About Us (read-only HTML content)",
       "item": [
         {
-          "name": "Stripe Webhook Event Notification",
+          "name": "Get Privacy Policy",
+          "description": "Screen: Settings → Privacy Policy",
           "request": {
-            "method": "POST",
-            "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "stripe-signature", "value": "t=1700000000,v1=mock_signature_hash" }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"id\": \"evt_1MockEvent123\",\n  \"type\": \"checkout.session.completed\",\n  \"data\": {\n    \"object\": {\n      \"id\": \"cs_test_a1b2c3d4e5f6\",\n      \"customer\": \"cus_123456789\",\n      \"subscription\": \"sub_987654321\",\n      \"amount_total\": 7900,\n      \"payment_status\": \"paid\",\n      \"metadata\": {\n        \"userId\": \"66b3f12a84d29a001a4e5678\",\n        \"subscriptionId\": \"66b3f12a84d29a001a4e1234\",\n        \"subscriptionName\": \"VIP\",\n        \"couponCode\": \"ELITE50\"\n      }\n    }\n  }\n}"
-            },
+            "method": "GET",
             "url": {
-              "raw": "http://localhost:2002/stripe/webhook",
-              "protocol": "http",
-              "host": ["localhost"],
-              "port": "2002",
-              "path": ["stripe", "webhook"]
+              "raw": "{{baseUrl}}/management/privacy",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "management",
+                "privacy"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Terms & Conditions",
+          "description": "Screen: Settings → Terms & Conditions",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/management/terms",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "management",
+                "terms"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get About Us",
+          "description": "Screen: Settings → About Us",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/management/about",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "management",
+                "about"
+              ]
             }
           }
         }
       ]
     },
     {
-      "name": "Coupons",
+      "name": "Signals (Core App)",
+      "description": "App screens: Signals Home (market hours), All Signals list\n\n**Access rules:**\n- Free users → previous day active signals only\n- Active subscription → today's active signals filtered by plan (VIP/Forex/Crypto)\n\n**List query params:** category, searchTerm, sort, page, limit\n**Category filters:** All | Forex | Crypto | Gold",
       "item": [
         {
-          "name": "Get All Coupons",
+          "name": "Get Global Market Hours",
+          "description": "Screen: Signals home → Global Market Hours cards\n\nReturns OPEN/CLOSED status, local time, and UTC session ranges for Sydney, Tokyo, London, New York.",
           "request": {
             "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
             "url": {
-              "raw": "http://localhost:2002/api/v1/coupon",
-              "protocol": "http",
-              "host": ["localhost"],
-              "port": "2002",
-              "path": ["api", "v1", "coupon"]
+              "raw": "{{baseUrl}}/signal/app/market-hours",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "signal",
+                "app",
+                "market-hours"
+              ]
             }
           }
         },
         {
-          "name": "Create New Coupon Code",
+          "name": "Get All Active Signals",
+          "description": "Screen: Signals home preview + All Signals list\n\nQuery params:\n- category: All | Forex | Crypto | Gold\n- searchTerm: BTC, EUR/USD, XAU...\n- sort: -publishedAt (default), publishedAt, -createdAt\n- page: 1\n- limit: 10\n\nAlso accepts legacy alias `search` instead of `searchTerm`.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.data && json.data.signals && json.data.signals.length) {",
+                  "  pm.collectionVariables.set('signalId', json.data.signals[0].id);",
+                  "}"
+                ]
+              }
+            }
+          ],
           "request": {
-            "method": "POST",
+            "method": "GET",
             "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
             ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"code\": \"SUMMER50\",\n  \"discount\": 50,\n  \"discountType\": \"percentage\",\n  \"limit\": 100,\n  \"expiry\": \"2026-08-30\",\n  \"status\": \"Active\"\n}"
-            },
             "url": {
-              "raw": "http://localhost:2002/api/v1/coupon/create",
-              "protocol": "http",
-              "host": ["localhost"],
-              "port": "2002",
-              "path": ["api", "v1", "coupon", "create"]
+              "raw": "{{baseUrl}}/signal/app?category=All&searchTerm=&sort=-publishedAt&page=1&limit=10",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "signal",
+                "app"
+              ],
+              "query": [
+                {
+                  "key": "category",
+                  "value": "All",
+                  "description": "All | Forex | Crypto | Gold"
+                },
+                {
+                  "key": "searchTerm",
+                  "value": "",
+                  "description": "Search asset or signal type e.g. BTC, EUR/USD"
+                },
+                {
+                  "key": "sort",
+                  "value": "-publishedAt",
+                  "description": "Sort field. Prefix with - for descending"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
             }
           }
         },
         {
-          "name": "Validate Coupon Code (Plan Purchase)",
+          "name": "Get Active Signals By Category (Crypto)",
+          "description": "Screen: All Signals → Crypto filter chip",
           "request": {
-            "method": "POST",
+            "method": "GET",
             "header": [
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
             ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"code\": \"ELITE50\"\n}"
-            },
             "url": {
-              "raw": "http://localhost:2002/api/v1/coupon/validate",
-              "protocol": "http",
-              "host": ["localhost"],
-              "port": "2002",
-              "path": ["api", "v1", "coupon", "validate"]
+              "raw": "{{baseUrl}}/signal/app?category=Crypto&sort=-publishedAt&page=1&limit=10",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "signal",
+                "app"
+              ],
+              "query": [
+                {
+                  "key": "category",
+                  "value": "Crypto"
+                },
+                {
+                  "key": "sort",
+                  "value": "-publishedAt"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Search Active Signals",
+          "description": "Screen: All Signals → search bar\n\nExample search: BTC",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/signal/app?searchTerm=BTC&category=All&page=1&limit=10",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "signal",
+                "app"
+              ],
+              "query": [
+                {
+                  "key": "searchTerm",
+                  "value": "BTC"
+                },
+                {
+                  "key": "category",
+                  "value": "All"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
             }
           }
         }
       ]
     },
     {
-      "name": "Trial & Promo Config",
+      "name": "Notifications",
+      "description": "App screen: Notifications tab\n\nReturns sent notifications targeted to the logged-in user audience.\n\nQuery params: searchTerm, sort, page, limit",
       "item": [
         {
-          "name": "Get Trial Config",
+          "name": "Get App Notifications",
+          "description": "Screen: Notifications list\n\nQuery params:\n- searchTerm: search in title/message\n- sort: -sentAt (default), sentAt, -createdAt\n- page: 1\n- limit: 10",
           "request": {
             "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
             "url": {
-              "raw": "http://localhost:2002/api/v1/subscription/trial-config",
-              "protocol": "http",
-              "host": ["localhost"],
-              "port": "2002",
-              "path": ["api", "v1", "subscription", "trial-config"]
+              "raw": "{{baseUrl}}/notification/app?searchTerm=&sort=-sentAt&page=1&limit=10",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "notification",
+                "app"
+              ],
+              "query": [
+                {
+                  "key": "searchTerm",
+                  "value": "",
+                  "description": "Search notification title or message"
+                },
+                {
+                  "key": "sort",
+                  "value": "-sentAt"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
             }
           }
         },
         {
-          "name": "Update Trial Config",
+          "name": "Search App Notifications",
+          "description": "Example search in notifications feed",
           "request": {
-            "method": "POST",
+            "method": "GET",
             "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
             ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"promoOn\": true,\n  \"promoLimit\": 100,\n  \"promoDuration\": \"1 Month (30 Days)\",\n  \"trialOn\": true,\n  \"trialDuration\": \"2 Days\"\n}"
-            },
             "url": {
-              "raw": "http://localhost:2002/api/v1/subscription/trial-config",
-              "protocol": "http",
-              "host": ["localhost"],
-              "port": "2002",
-              "path": ["api", "v1", "subscription", "trial-config"]
+              "raw": "{{baseUrl}}/notification/app?searchTerm=signal&page=1&limit=10",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "notification",
+                "app"
+              ],
+              "query": [
+                {
+                  "key": "searchTerm",
+                  "value": "signal"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
             }
           }
         }
