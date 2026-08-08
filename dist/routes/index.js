@@ -9,10 +9,18 @@ const management_route_1 = require("../modules/basic_modules/management/manageme
 const subscription_route_1 = require("../modules/basic_modules/subscription/subscription.route");
 const coupon_route_1 = require("../modules/basic_modules/coupon/coupon.route");
 const payment_route_1 = require("../modules/payment/payment.route");
+const signal_route_1 = require("../modules/basic_modules/signal/signal.route");
+const post_route_1 = require("../modules/basic_modules/post/post.route");
+const notification_route_1 = require("../modules/basic_modules/notification/notification.route");
+const dashboard_route_1 = require("../modules/basic_modules/dashboard/dashboard.route");
 const router = express_1.default.Router();
 router.use("/api/v1/user", user_route_1.UserRoutes);
 router.use("/api/v1/management", management_route_1.managementRoutes);
 router.use("/api/v1/subscription", subscription_route_1.subscriptionRoutes);
 router.use("/api/v1/coupon", coupon_route_1.couponRoutes);
+router.use("/api/v1/signal", signal_route_1.signalRoutes);
+router.use("/api/v1/post", post_route_1.postRoutes);
+router.use("/api/v1/notification", notification_route_1.notificationRoutes);
+router.use("/api/v1/dashboard", dashboard_route_1.dashboardRoutes);
 router.use("/stripe", payment_route_1.paymentRoutes);
 exports.default = router;

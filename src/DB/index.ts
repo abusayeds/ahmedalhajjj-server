@@ -1,5 +1,6 @@
 import { UserModel } from "../modules/basic_modules/user/user.model";
 import { seedSubscriptions } from "../modules/basic_modules/subscription/subscription.seed";
+import { seedSignalTypes } from "../modules/basic_modules/signal/signalType.seed";
 
 
 const admin = {
@@ -19,7 +20,7 @@ export const seedSuperAdmin = async () => {
     await UserModel.create(admin);
   }
 
-  // Seed subscriptions
+  await seedSignalTypes();
   await seedSubscriptions();
 };
 

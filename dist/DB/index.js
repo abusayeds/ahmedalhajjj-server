@@ -12,6 +12,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.seedSuperAdmin = void 0;
 const user_model_1 = require("../modules/basic_modules/user/user.model");
 const subscription_seed_1 = require("../modules/basic_modules/subscription/subscription.seed");
+const signalType_seed_1 = require("../modules/basic_modules/signal/signalType.seed");
 const admin = {
     name: "MD Admin",
     email: "admin@gmail.com",
@@ -26,7 +27,7 @@ const seedSuperAdmin = () => __awaiter(void 0, void 0, void 0, function* () {
     if (!isSuperAdminExists) {
         yield user_model_1.UserModel.create(admin);
     }
-    // Seed subscriptions
+    yield (0, signalType_seed_1.seedSignalTypes)();
     yield (0, subscription_seed_1.seedSubscriptions)();
 });
 exports.seedSuperAdmin = seedSuperAdmin;
