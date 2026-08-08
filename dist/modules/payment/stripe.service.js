@@ -18,6 +18,22 @@ const config_1 = require("../../config");
 const user_model_1 = require("../../modules/basic_modules/user/user.model");
 const subscription_model_1 = require("../../modules/basic_modules/subscription/subscription.model");
 const coupon_model_1 = require("../../modules/basic_modules/coupon/coupon.model");
+const resolveSubscriptionType = (name) => {
+    const value = (name || "").toLowerCase();
+    if (value.includes("forex"))
+        return "Forex";
+    if (value.includes("crypto"))
+        return "Crypto";
+    return "VIP";
+};
+const activateUserSubscription = (userId_1, subscriptionName_1, endDate_1, purchaseId_1, ...args_1) => __awaiter(void 0, [userId_1, subscriptionName_1, endDate_1, purchaseId_1, ...args_1], void 0, function* (userId, subscriptionName, endDate, purchaseId, status = "active") {
+    yield user_model_1.UserModel.findByIdAndUpdate(userId, {
+        subscriptionType: resolveSubscriptionType(subscriptionName),
+        subscriptionStatus: status,
+        subscriptionEndDate: endDate,
+        currentSubscription: purchaseId || null,
+    });
+});
 const stripe = new stripe_1.default(config_1.STRIPE_SECRET_KEY, {
     apiVersion: "2024-04-10",
 });
@@ -42,11 +58,16 @@ const handleStripeWebhook = (req, res) => __awaiter(void 0, void 0, void 0, func
             const session = event.data.object;
             console.log("Checkout session completed:", session.id);
             if (session.metadata) {
-                const { userId, subscriptionId, couponCode, subscriptionName } = session.metadata;
-                let purchase = yield subscription_model_1.PurchaseModel.findOne({
-                    userId,
-                    subscriptionId,
-                });
+                const { userId, subscriptionId, couponCode, subscriptionName, purchaseId } = session.metadata;
+                let purchase = purchaseId
+                    ? yield subscription_model_1.PurchaseModel.findById(purchaseId)
+                    : yield subscription_model_1.PurchaseModel.findOne({
+                        userId,
+                        subscriptionId,
+                        paymentStatus: "pending",
+                    }).sort({ createdAt: -1 });
+                const endDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+                const paidAmount = (session.amount_total || 0) / 100;
                 if (!purchase) {
                     purchase = new subscription_model_1.PurchaseModel({
                         userId,
@@ -55,10 +76,11 @@ const handleStripeWebhook = (req, res) => __awaiter(void 0, void 0, void 0, func
                         stripeCustomerId: session.customer,
                         stripeSubscriptionId: session.subscription,
                         startDate: new Date(),
-                        endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+                        endDate,
                         paymentStatus: "completed",
-                        amount: (session.amount_total || 0) / 100,
+                        amount: paidAmount,
                         isActive: true,
+                        billingCycle: "monthly",
                     });
                 }
                 else {
@@ -66,14 +88,19 @@ const handleStripeWebhook = (req, res) => __awaiter(void 0, void 0, void 0, func
                     purchase.stripeSubscriptionId = session.subscription;
                     purchase.paymentStatus = "completed";
                     purchase.isActive = true;
-                    purchase.endDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+                    purchase.endDate = endDate;
+                    if (paidAmount > 0) {
+                        purchase.amount = paidAmount;
+                    }
                 }
                 yield purchase.save();
                 if (userId) {
-                    yield user_model_1.UserModel.findByIdAndUpdate(userId, {
-                        isSubscribed: true,
-                        subscriptionPlan: subscriptionName || "VIP",
-                    });
+                    yield subscription_model_1.PurchaseModel.updateMany({
+                        userId,
+                        _id: { $ne: purchase._id },
+                        isActive: true,
+                    }, { $set: { isActive: false } });
+                    yield activateUserSubscription(userId, purchase.subscriptionName, purchase.endDate, String(purchase._id), "active");
                 }
                 if (couponCode) {
                     const coupon = yield coupon_model_1.CouponModel.findOne({ code: couponCode.toUpperCase() });
@@ -150,24 +177,16 @@ const handleStripeWebhook = (req, res) => __awaiter(void 0, void 0, void 0, func
     res.json({ received: true });
 });
 exports.handleStripeWebhook = handleStripeWebhook;
-// Create checkout session
-const createCheckoutSession = (userId_1, subscriptionId_1, ...args_1) => __awaiter(void 0, [userId_1, subscriptionId_1, ...args_1], void 0, function* (userId, subscriptionId, isFreeTrial = false, couponCode) {
+// Create Stripe checkout session for paid subscription purchase
+const createCheckoutSession = (params) => __awaiter(void 0, void 0, void 0, function* () {
+    const unitAmount = Math.max(0, Math.round(params.amount * 100));
+    if (!config_1.STRIPE_SECRET_KEY) {
+        return {
+            id: `cs_test_${params.purchaseId}`,
+            url: null,
+        };
+    }
     try {
-        if (isFreeTrial) {
-            const purchase = new subscription_model_1.PurchaseModel({
-                userId,
-                subscriptionId,
-                subscriptionName: "VIP",
-                isFreeTrial: true,
-                paymentStatus: "completed",
-                isActive: true,
-                amount: 0,
-                startDate: new Date(),
-                endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-            });
-            yield purchase.save();
-            return purchase;
-        }
         const session = yield stripe.checkout.sessions.create({
             payment_method_types: ["card"],
             mode: "subscription",
@@ -176,21 +195,23 @@ const createCheckoutSession = (userId_1, subscriptionId_1, ...args_1) => __await
                     price_data: {
                         currency: "usd",
                         product_data: {
-                            name: "Subscription Plan",
+                            name: `${params.subscriptionName} Plan`,
                         },
-                        unit_amount: 4900,
+                        unit_amount: unitAmount,
                         recurring: { interval: "month" },
                     },
                     quantity: 1,
                 },
             ],
-            success_url: `http://localhost:5173/subscription/success?session_id={CHECKOUT_SESSION_ID}`,
-            cancel_url: `http://localhost:5173/subscription/cancelled`,
-            client_reference_id: userId,
+            success_url: `${config_1.FRONTEND_URL}/subscription/success?session_id={CHECKOUT_SESSION_ID}`,
+            cancel_url: `${config_1.FRONTEND_URL}/subscription/cancelled`,
+            client_reference_id: String(params.userId),
             metadata: {
-                userId,
-                subscriptionId,
-                couponCode: couponCode || "",
+                userId: String(params.userId),
+                subscriptionId: String(params.subscriptionId),
+                subscriptionName: String(params.subscriptionName),
+                purchaseId: String(params.purchaseId),
+                couponCode: params.couponCode ? String(params.couponCode) : "",
             },
         });
         return session;

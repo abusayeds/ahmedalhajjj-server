@@ -1,9 +1,31 @@
 import Stripe from "stripe";
 import { Request, Response } from "express";
-import { STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET } from "../../config";
+import { FRONTEND_URL, STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET } from "../../config";
 import { UserModel } from "../../modules/basic_modules/user/user.model";
 import { PurchaseModel } from "../../modules/basic_modules/subscription/subscription.model";
 import { CouponModel } from "../../modules/basic_modules/coupon/coupon.model";
+
+const resolveSubscriptionType = (name?: string) => {
+  const value = (name || "").toLowerCase();
+  if (value.includes("forex")) return "Forex";
+  if (value.includes("crypto")) return "Crypto";
+  return "VIP";
+};
+
+const activateUserSubscription = async (
+  userId: string,
+  subscriptionName: string,
+  endDate: Date,
+  purchaseId?: string,
+  status: "active" | "trial" = "active",
+) => {
+  await UserModel.findByIdAndUpdate(userId, {
+    subscriptionType: resolveSubscriptionType(subscriptionName),
+    subscriptionStatus: status,
+    subscriptionEndDate: endDate,
+    currentSubscription: purchaseId || null,
+  });
+};
 
 const stripe = new Stripe(STRIPE_SECRET_KEY as string, {
   apiVersion: "2024-04-10" as any,
@@ -36,12 +58,19 @@ export const handleStripeWebhook = async (req: Request, res: Response) => {
       console.log("Checkout session completed:", session.id);
 
       if (session.metadata) {
-        const { userId, subscriptionId, couponCode, subscriptionName } = session.metadata;
+        const { userId, subscriptionId, couponCode, subscriptionName, purchaseId } =
+          session.metadata;
 
-        let purchase = await PurchaseModel.findOne({
-          userId,
-          subscriptionId,
-        });
+        let purchase = purchaseId
+          ? await PurchaseModel.findById(purchaseId)
+          : await PurchaseModel.findOne({
+              userId,
+              subscriptionId,
+              paymentStatus: "pending",
+            }).sort({ createdAt: -1 });
+
+        const endDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+        const paidAmount = (session.amount_total || 0) / 100;
 
         if (!purchase) {
           purchase = new PurchaseModel({
@@ -51,26 +80,42 @@ export const handleStripeWebhook = async (req: Request, res: Response) => {
             stripeCustomerId: session.customer as string,
             stripeSubscriptionId: session.subscription as string,
             startDate: new Date(),
-            endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+            endDate,
             paymentStatus: "completed",
-            amount: (session.amount_total || 0) / 100,
+            amount: paidAmount,
             isActive: true,
+            billingCycle: "monthly",
           });
         } else {
           purchase.stripeCustomerId = session.customer as string;
           purchase.stripeSubscriptionId = session.subscription as string;
           purchase.paymentStatus = "completed";
           purchase.isActive = true;
-          purchase.endDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+          purchase.endDate = endDate;
+          if (paidAmount > 0) {
+            purchase.amount = paidAmount;
+          }
         }
 
         await purchase.save();
 
         if (userId) {
-          await UserModel.findByIdAndUpdate(userId, {
-            isSubscribed: true,
-            subscriptionPlan: subscriptionName || "VIP",
-          });
+          await PurchaseModel.updateMany(
+            {
+              userId,
+              _id: { $ne: purchase._id },
+              isActive: true,
+            },
+            { $set: { isActive: false } },
+          );
+
+          await activateUserSubscription(
+            userId,
+            purchase.subscriptionName,
+            purchase.endDate,
+            String(purchase._id),
+            "active",
+          );
         }
 
         if (couponCode) {
@@ -164,30 +209,27 @@ export const handleStripeWebhook = async (req: Request, res: Response) => {
   res.json({ received: true });
 };
 
-// Create checkout session
-export const createCheckoutSession = async (
-  userId: string,
-  subscriptionId: string,
-  isFreeTrial: boolean = false,
-  couponCode?: string
-) => {
-  try {
-    if (isFreeTrial) {
-      const purchase = new PurchaseModel({
-        userId,
-        subscriptionId,
-        subscriptionName: "VIP",
-        isFreeTrial: true,
-        paymentStatus: "completed",
-        isActive: true,
-        amount: 0,
-        startDate: new Date(),
-        endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-      });
-      await purchase.save();
-      return purchase;
-    }
+export interface CheckoutSessionParams {
+  userId: string;
+  subscriptionId: string;
+  subscriptionName: string;
+  amount: number;
+  purchaseId: string;
+  couponCode?: string;
+}
 
+// Create Stripe checkout session for paid subscription purchase
+export const createCheckoutSession = async (params: CheckoutSessionParams) => {
+  const unitAmount = Math.max(0, Math.round(params.amount * 100));
+
+  if (!STRIPE_SECRET_KEY) {
+    return {
+      id: `cs_test_${params.purchaseId}`,
+      url: null,
+    } as unknown as Stripe.Checkout.Session;
+  }
+
+  try {
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ["card"],
       mode: "subscription",
@@ -196,21 +238,23 @@ export const createCheckoutSession = async (
           price_data: {
             currency: "usd",
             product_data: {
-              name: "Subscription Plan",
+              name: `${params.subscriptionName} Plan`,
             },
-            unit_amount: 4900,
+            unit_amount: unitAmount,
             recurring: { interval: "month" },
           },
           quantity: 1,
         },
       ],
-      success_url: `http://localhost:5173/subscription/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `http://localhost:5173/subscription/cancelled`,
-      client_reference_id: userId,
+      success_url: `${FRONTEND_URL}/subscription/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${FRONTEND_URL}/subscription/cancelled`,
+      client_reference_id: String(params.userId),
       metadata: {
-        userId,
-        subscriptionId,
-        couponCode: couponCode || "",
+        userId: String(params.userId),
+        subscriptionId: String(params.subscriptionId),
+        subscriptionName: String(params.subscriptionName),
+        purchaseId: String(params.purchaseId),
+        couponCode: params.couponCode ? String(params.couponCode) : "",
       },
     });
 
