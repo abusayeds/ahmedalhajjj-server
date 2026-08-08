@@ -1,0 +1,16 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.notificationRoutes = void 0;
+const express_1 = require("express");
+const auth_1 = require("../../../middlewares/auth");
+const role_1 = require("../../../utils/role");
+const notification_controller_1 = require("./notification.controller");
+const router = (0, express_1.Router)();
+router.get("/app", (0, auth_1.authMiddleware)(role_1.role.user), notification_controller_1.getNotificationsApp);
+router.get("/audience-stats", (0, auth_1.authMiddleware)(role_1.role.admin), notification_controller_1.getAudienceStatsHandler);
+router.get("/", (0, auth_1.authMiddleware)(role_1.role.admin), notification_controller_1.getNotificationsAdmin);
+router.post("/send", (0, auth_1.authMiddleware)(role_1.role.admin), notification_controller_1.sendNotificationHandler);
+router.post("/schedule", (0, auth_1.authMiddleware)(role_1.role.admin), notification_controller_1.scheduleNotificationHandler);
+router.patch("/:id", (0, auth_1.authMiddleware)(role_1.role.admin), notification_controller_1.updateNotificationHandler);
+router.delete("/:id", (0, auth_1.authMiddleware)(role_1.role.admin), notification_controller_1.deleteNotificationHandler);
+exports.notificationRoutes = router;
