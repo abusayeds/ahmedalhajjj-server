@@ -19,17 +19,17 @@ const catchAsync_1 = __importDefault(require("../utils/catchAsync"));
 const sendResponse_1 = __importDefault(require("../utils/sendResponse"));
 exports.uploadFile = (0, catchAsync_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
     if (!req.file) {
-        throw new AppError_1.default(http_status_1.default.BAD_REQUEST, 'No uploded file ');
+        throw new AppError_1.default(http_status_1.default.BAD_REQUEST, "No file uploaded.");
     }
     const file = req.file;
-    console.log(file);
+    const publicUrl = `/images/${file.filename}`;
     (0, sendResponse_1.default)(res, {
         statusCode: http_status_1.default.OK,
         success: true,
-        message: "File uploaded",
+        message: "File uploaded successfully",
         data: {
-            path: file.path,
-            url: `${req.protocol}://${req.get('host')}/images/${file.filename}`
-        }
+            url: publicUrl,
+            path: file.path.replace(/\\/g, "/"),
+        },
     });
 }));
