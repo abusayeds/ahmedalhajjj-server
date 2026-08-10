@@ -7,6 +7,7 @@ export interface ISubscription {
   price: number;
   monthly?: string;
   yearly?: string;
+  yearlyEnabled?: boolean;
   billingCycle?: "monthly" | "yearly";
   features: string[];
   maxSignalsPerDay?: number;
