@@ -23,10 +23,15 @@ app.post("/stripe/webhook", express_1.default.raw({ type: "application/json" }),
 app.use(express_1.default.json());
 app.use(express_1.default.urlencoded({ extended: true }));
 app.use((0, cookie_parser_1.default)());
-app.use((0, cors_1.default)({
+const corsOptions = {
     origin: true,
     credentials: true,
-}));
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+    optionsSuccessStatus: 204,
+};
+app.use((0, cors_1.default)(corsOptions));
+app.options("*", (0, cors_1.default)(corsOptions));
 app.use(express_1.default.static("public"));
 app.use(logger_1.logHttpRequests);
 // app.use((req: Request, res: Response, next: NextFunction) => {
