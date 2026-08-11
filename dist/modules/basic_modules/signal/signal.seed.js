@@ -22,7 +22,7 @@ const dayAt = (offsetDays, hour = 10, minute = 0) => {
 const seedSignals = () => __awaiter(void 0, void 0, void 0, function* () {
     const admin = yield user_model_1.UserModel.findOne({ role: "admin" }).select("_id");
     const adminId = admin === null || admin === void 0 ? void 0 : admin._id;
-    yield signal_model_1.SignalModel.deleteMany({ notes: { $regex: SEED_MARKER } });
+    yield signal_model_1.SignalModel.deleteMany({});
     const today = dayAt(0);
     const yesterday = dayAt(-1);
     const tomorrow = dayAt(1, 9, 30);
@@ -214,6 +214,35 @@ const seedSignals = () => __awaiter(void 0, void 0, void 0, function* () {
             createdBy: adminId,
         },
         // ── Yesterday — free-user app access (previous day only) ──
+        {
+            asset: "NZD/USD",
+            category: "Forex",
+            type: "Scalp",
+            direction: "BUY",
+            entry: "0.6120",
+            sl: "0.6095",
+            tp1: "0.6155",
+            tp2: "0.6180",
+            notes: `${SEED_MARKER} Yesterday active preview for free users.`,
+            status: "Active",
+            publishedAt: dayAt(-1, 8, 30),
+            signalDate: yesterday,
+            createdBy: adminId,
+        },
+        {
+            asset: "LTC/USDT",
+            category: "Crypto",
+            type: "Swing",
+            direction: "SELL",
+            entry: "92.50",
+            sl: "95.00",
+            tp1: "89.00",
+            notes: `${SEED_MARKER} Yesterday active crypto preview for free users.`,
+            status: "Active",
+            publishedAt: dayAt(-1, 13, 15),
+            signalDate: yesterday,
+            createdBy: adminId,
+        },
         {
             asset: "EUR/GBP",
             category: "Forex",

@@ -44,6 +44,7 @@ const SubscriptionSchema = new mongoose_1.Schema({
     price: { type: Number, required: true },
     monthly: { type: String },
     yearly: { type: String },
+    yearlyEnabled: { type: Boolean, default: true },
     billingCycle: {
         type: String,
         enum: ["monthly", "yearly"],

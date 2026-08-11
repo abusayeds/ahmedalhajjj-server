@@ -39,6 +39,7 @@ const seedSubscriptions = () => __awaiter(void 0, void 0, void 0, function* () {
                 includesEconomicCalendar: true,
                 support: "premium",
                 signalTypes: ["Scalp", "Swing", "Long-term"],
+                yearlyEnabled: true,
                 isActive: true,
             },
             {
@@ -63,6 +64,7 @@ const seedSubscriptions = () => __awaiter(void 0, void 0, void 0, function* () {
                 includesEconomicCalendar: false,
                 support: "advanced",
                 signalTypes: ["Scalp", "Swing"],
+                yearlyEnabled: true,
                 isActive: true,
             },
             {
@@ -87,6 +89,7 @@ const seedSubscriptions = () => __awaiter(void 0, void 0, void 0, function* () {
                 includesEconomicCalendar: false,
                 support: "advanced",
                 signalTypes: ["Scalp", "Swing"],
+                yearlyEnabled: true,
                 isActive: true,
             },
         ];
