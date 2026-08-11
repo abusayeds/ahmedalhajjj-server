@@ -11,6 +11,7 @@ const SubscriptionSchema = new Schema<ISubscription>(
     price: { type: Number, required: true },
     monthly: { type: String },
     yearly: { type: String },
+    yearlyEnabled: { type: Boolean, default: true },
     billingCycle: {
       type: String,
       enum: ["monthly", "yearly"],
