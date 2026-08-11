@@ -29,6 +29,7 @@ export const seedSubscriptions = async () => {
         includesEconomicCalendar: true,
         support: "premium",
         signalTypes: ["Scalp", "Swing", "Long-term"],
+        yearlyEnabled: true,
         isActive: true,
       },
       {
@@ -53,6 +54,7 @@ export const seedSubscriptions = async () => {
         includesEconomicCalendar: false,
         support: "advanced",
         signalTypes: ["Scalp", "Swing"],
+        yearlyEnabled: true,
         isActive: true,
       },
       {
@@ -77,6 +79,7 @@ export const seedSubscriptions = async () => {
         includesEconomicCalendar: false,
         support: "advanced",
         signalTypes: ["Scalp", "Swing"],
+        yearlyEnabled: true,
         isActive: true,
       },
     ];
