@@ -1,5 +1,6 @@
 /* eslint-disable no-undef */
 /* eslint-disable no-unused-vars */
+import fs from "fs";
 import { Request } from "express";
 import createHttpError from "http-errors";
 import multer, { FileFilterCallback } from "multer";
@@ -8,6 +9,10 @@ import { v4 as uuidv4 } from 'uuid';
 import { max_file_size, UPLOAD_FOLDER } from "../config";
 const UPLOAD_PATH = UPLOAD_FOLDER || "public/images";
 const MAX_FILE_SIZE = Number(max_file_size) || 5 * 1024 * 1024;
+
+if (!fs.existsSync(UPLOAD_PATH)) {
+  fs.mkdirSync(UPLOAD_PATH, { recursive: true });
+}
 
 const ALLOWED_FILE_TYPES = [
   ".jpg",
