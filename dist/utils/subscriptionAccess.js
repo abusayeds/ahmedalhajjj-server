@@ -11,6 +11,11 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getTodayRange = exports.getYesterdayRange = exports.resolveUserAccess = void 0;
 const subscription_model_1 = require("../modules/basic_modules/subscription/subscription.model");
+const DEFAULT_SIGNAL_TYPES = {
+    VIP: ["Scalp", "Swing", "Intraday", "Position", "Long-term"],
+    Forex: ["Scalp", "Swing"],
+    Crypto: ["Scalp", "Swing"],
+};
 const isAccessActive = (user) => {
     if (!user)
         return false;
@@ -40,7 +45,9 @@ const resolveUserAccess = (user) => __awaiter(void 0, void 0, void 0, function* 
     }
     const subscription = yield subscription_model_1.SubscriptionModel.findOne({ name: plan, isActive: { $ne: false } });
     const maxSignalsPerDay = (subscription === null || subscription === void 0 ? void 0 : subscription.maxSignalsPerDay) || (plan === "VIP" ? 10 : 5);
-    const allowedSignalTypes = ((_a = subscription === null || subscription === void 0 ? void 0 : subscription.signalTypes) === null || _a === void 0 ? void 0 : _a.length) ? subscription.signalTypes : [];
+    const allowedSignalTypes = ((_a = subscription === null || subscription === void 0 ? void 0 : subscription.signalTypes) === null || _a === void 0 ? void 0 : _a.length)
+        ? subscription.signalTypes
+        : DEFAULT_SIGNAL_TYPES[plan];
     let allowedCategories = [];
     if (plan === "VIP") {
         allowedCategories = ["Forex", "Crypto", "Commodity", "Index"];

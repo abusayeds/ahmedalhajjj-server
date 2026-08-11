@@ -92,8 +92,9 @@ export const formatSignalForDashboard = (signal: ISignal) => ({
   tp3: signal.tp3 || "—",
   status: signal.status,
   pub: formatPublishedLabel(signal.publishedAt || signal.createdAt),
+  signalDate: signal.signalDate ? new Date(signal.signalDate).toISOString() : undefined,
   notes: signal.notes || "",
-  scheduledAt: signal.scheduledAt,
+  scheduledAt: signal.scheduledAt ? new Date(signal.scheduledAt).toISOString() : undefined,
   closeResult: signal.closeResult,
   closePnl: signal.closePnl,
 });

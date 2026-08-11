@@ -27,9 +27,11 @@ const normalizeSignalPayload = (payload) => {
     if (payload.category === "Commodity") {
         data.isGoldSignal = true;
     }
-    if (payload.status === "Active" && !payload.publishedAt) {
-        data.publishedAt = new Date();
-        data.signalDate = new Date();
+    if (payload.status === "Active") {
+        if (!payload.publishedAt) {
+            data.publishedAt = new Date();
+        }
+        data.signalDate = payload.signalDate ? new Date(payload.signalDate) : new Date();
     }
     if (payload.status === "Scheduled" && payload.scheduledAt) {
         data.signalDate = new Date(payload.scheduledAt);
@@ -122,17 +124,21 @@ const buildAppSignalFilter = (access, query) => {
         if (access.allowedSignalTypes.length) {
             andConditions.push((0, signalType_service_1.buildSignalTypeMatchFilter)(access.allowedSignalTypes));
         }
-        else {
-            andConditions.push({ type: { $in: [] } });
-        }
     }
-    const category = String(query.category || "All");
-    if (category && category !== "All") {
-        if (category === "Gold") {
+    const category = String(query.category || "All").trim();
+    const normalizedCategory = category.toLowerCase();
+    if (normalizedCategory && normalizedCategory !== "all") {
+        if (normalizedCategory === "gold") {
             andConditions.push({ isGoldSignal: true });
         }
         else {
-            andConditions.push({ category });
+            const categoryMap = {
+                forex: "Forex",
+                crypto: "Crypto",
+                commodity: "Commodity",
+                index: "Index",
+            };
+            andConditions.push({ category: categoryMap[normalizedCategory] || category });
         }
     }
     return andConditions.length === 1 ? andConditions[0] : { $and: andConditions };

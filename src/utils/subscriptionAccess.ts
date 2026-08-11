@@ -3,6 +3,12 @@ import { SubscriptionModel } from "../modules/basic_modules/subscription/subscri
 
 export type AccessPlan = "VIP" | "Forex" | "Crypto" | null;
 
+const DEFAULT_SIGNAL_TYPES: Record<Exclude<AccessPlan, null>, string[]> = {
+  VIP: ["Scalp", "Swing", "Intraday", "Position", "Long-term"],
+  Forex: ["Scalp", "Swing"],
+  Crypto: ["Scalp", "Swing"],
+};
+
 export interface UserAccessContext {
   plan: AccessPlan;
   hasActiveAccess: boolean;
@@ -45,7 +51,9 @@ export const resolveUserAccess = async (user: IUser): Promise<UserAccessContext>
   const subscription = await SubscriptionModel.findOne({ name: plan, isActive: { $ne: false } });
 
   const maxSignalsPerDay = subscription?.maxSignalsPerDay || (plan === "VIP" ? 10 : 5);
-  const allowedSignalTypes = subscription?.signalTypes?.length ? subscription.signalTypes : [];
+  const allowedSignalTypes = subscription?.signalTypes?.length
+    ? subscription.signalTypes
+    : DEFAULT_SIGNAL_TYPES[plan];
 
   let allowedCategories: string[] = [];
   if (plan === "VIP") {
