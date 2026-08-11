@@ -275,6 +275,9 @@ const initiateSubscriptionPurchase = (userId_1, subscriptionId_1, ...args_1) => 
     }
     const subscriptionName = subscription.name;
     const billingCycle = options.billingCycle || "monthly";
+    if (billingCycle === "yearly" && subscription.yearlyEnabled === false) {
+        throw new AppError_1.default(http_status_1.default.BAD_REQUEST, "Yearly billing is not available for this subscription plan.");
+    }
     const endDate = new Date();
     endDate.setMonth(endDate.getMonth() + 1);
     if (options.isFreeTrial) {

@@ -326,6 +326,14 @@ export const initiateSubscriptionPurchase = async (
 
   const subscriptionName = subscription.name;
   const billingCycle = options.billingCycle || "monthly";
+
+  if (billingCycle === "yearly" && subscription.yearlyEnabled === false) {
+    throw new AppError(
+      httpStatus.BAD_REQUEST,
+      "Yearly billing is not available for this subscription plan.",
+    );
+  }
+
   const endDate = new Date();
   endDate.setMonth(endDate.getMonth() + 1);
 
