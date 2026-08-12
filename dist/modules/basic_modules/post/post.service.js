@@ -16,6 +16,7 @@ exports.formatPostForDashboard = exports.getAppPosts = exports.schedulePost = ex
 const http_status_1 = __importDefault(require("http-status"));
 const AppError_1 = __importDefault(require("../../../errors/AppError"));
 const notification_service_1 = require("../notification/notification.service");
+const subscriptionAccess_1 = require("../../../utils/subscriptionAccess");
 const post_model_1 = require("./post.model");
 const formatPostDate = (date) => {
     if (!date)
@@ -92,8 +93,21 @@ const schedulePost = (id, scheduledAt) => __awaiter(void 0, void 0, void 0, func
     });
 });
 exports.schedulePost = schedulePost;
-const getAppPosts = () => __awaiter(void 0, void 0, void 0, function* () {
-    return post_model_1.PostModel.find({ status: "Published" }).sort({ publishedAt: -1 });
+const getAppPosts = (user) => __awaiter(void 0, void 0, void 0, function* () {
+    const access = yield (0, subscriptionAccess_1.resolveUserAccess)(user);
+    if (!access.canViewPremiumContent) {
+        return {
+            posts: [],
+            access,
+            message: "Premium posts are available for active subscribers only.",
+        };
+    }
+    const posts = yield post_model_1.PostModel.find({ status: "Published" }).sort({ publishedAt: -1 });
+    return {
+        posts,
+        access,
+        message: "Published posts for your subscription plan.",
+    };
 });
 exports.getAppPosts = getAppPosts;
 const formatPostForDashboard = (post) => ({

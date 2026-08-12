@@ -27,13 +27,19 @@ exports.getPostsAdmin = (0, catchAsync_1.default)((req, res) => __awaiter(void 0
         data: posts.map(post_service_1.formatPostForDashboard),
     });
 }));
-exports.getPostsApp = (0, catchAsync_1.default)((_req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    const posts = yield (0, post_service_1.getAppPosts)();
+exports.getPostsApp = (0, catchAsync_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    if (!req.user) {
+        throw new AppError_1.default(http_status_1.default.UNAUTHORIZED, "Unauthorized");
+    }
+    const result = yield (0, post_service_1.getAppPosts)(req.user);
     (0, sendResponse_1.default)(res, {
         statusCode: http_status_1.default.OK,
         success: true,
-        message: "Posts retrieved successfully",
-        data: posts.map(post_service_1.formatPostForDashboard),
+        message: result.message,
+        data: {
+            access: result.access,
+            posts: result.posts.map(post_service_1.formatPostForDashboard),
+        },
     });
 }));
 exports.createPostHandler = (0, catchAsync_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {

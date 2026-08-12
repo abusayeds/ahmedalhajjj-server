@@ -13,6 +13,7 @@ const PostSchema = new Schema<IPost>(
     coverImage: { type: String, default: "" },
     likes: { type: Number, default: 0 },
     commentsCount: { type: Number, default: 0 },
+    sharesCount: { type: Number, default: 0 },
     status: {
       type: String,
       enum: ["Draft", "Published", "Scheduled"],
