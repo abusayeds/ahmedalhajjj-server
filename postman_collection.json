@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "ahmedalhajjj-mobile-app-api-v1",
     "name": "AhmedAlhajji Mobile App API (Frontend)",
-    "description": "# Mobile App API Collection (Frontend Developers)\n\n> **Important:** In this project, **Frontend = Mobile App** only.\n> **Dashboard = Admin panel** (separate). Dashboard/Admin APIs are **NOT** in this collection.\n\n## Who is this for?\nGive this file to your **mobile app / frontend developer** so they can see which API belongs to which app screen.\n\n## Base URLs // example\n- Local: `http://localhost:2002/api/v1`\n- Production: change `serverUrl` variable\n\n## Folder → App Screen Map\n| Folder | App Screen / Feature |\n|--------|---------------------|\n| Auth & Onboarding | Sign up, OTP, Login |\n| Password Recovery | Forgot password flow |\n| User Profile | Profile view & edit |\n| Pricing & Plans | Subscription plans list, plan details, trial promo info |\n| Coupon (Checkout) | Validate discount code before payment |\n| Purchase & My Plan | Paywall, Stripe checkout, active subscription |\n| Legal Pages | Privacy, Terms, About (read-only) |\n| Signals (Core App) | Global market hours, all active signals (search/filter/sort/pagination) |\n| Notifications | App notification feed |\n\n## Purchase flow (App)\n1. Login User\n2. Get All Subscription Plans → save `subscriptionId`\n3. Validate Coupon (optional) → e.g. ELITE50 // example\n4. Initiate Purchase → open `checkoutUrl` in app (Stripe)\n5. After Stripe payment, backend webhook activates subscription automatically\n6. Call **Get Current Active Subscription** to refresh UI\n\n## Test user // example\n- email: alex.trader@example.com\n- password: Password123!",
+    "description": "# Mobile App API Collection (Frontend Developers)\n\n> **Important:** In this project, **Frontend = Mobile App** only.\n> **Dashboard = Admin panel** (separate). Dashboard/Admin APIs are **NOT** in this collection.\n\n## Who is this for?\nGive this file to your **mobile app / frontend developer** so they can see which API belongs to which app screen.\n\n## Base URLs // example\n- Local: `http://localhost:2002/api/v1`\n- Production: change `serverUrl` variable\n\n## Folder → App Screen Map\n| Folder | App Screen / Feature |\n|--------|---------------------|\n| Auth & Onboarding | Sign up, OTP, Login |\n| Password Recovery | Forgot password flow |\n| User Profile | Profile view & edit |\n| Pricing & Plans | Subscription plans list, plan details, trial promo info |\n| Coupon (Checkout) | Validate discount code before payment |\n| Purchase & My Plan | Paywall, Stripe checkout, active subscription |\n| Posts | Market news feed, comments, likes & shares |\n| Notifications | Bell icon, unread badge, alerts list |\n| History | Closed signals, performance overview, filters |\n| Legal Pages | Privacy, Terms, About (read-only) |\n\n## Purchase flow (App)\n1. Login User\n2. Get All Subscription Plans → save `subscriptionId`\n3. Validate Coupon (optional) → e.g. ELITE50 // example\n4. Initiate Purchase → open `checkoutUrl` in app (Stripe)\n5. After Stripe payment, backend webhook activates subscription automatically\n6. Call **Get Current Active Subscription** to refresh UI\n\n## Test users (demo)\nPassword for all: `1qazxsw2`\n- ahmed.user@gmail.com\n- fatima.user@gmail.com\n- omar.user@gmail.com\n- sara.user@gmail.com\n- yusuf.user@gmail.com\n- aisha.user@gmail.com\n- karim.user@gmail.com",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -38,11 +38,36 @@
     },
     {
       "key": "userEmail",
-      "value": "alex.trader@example.com",
+      "value": "ahmed.user@gmail.com",
+      "type": "string"
+    },
+    {
+      "key": "userPassword",
+      "value": "1qazxsw2",
       "type": "string"
     },
     {
       "key": "userId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "signalId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "postId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "commentId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "notificationId",
       "value": "",
       "type": "string"
     },
@@ -63,12 +88,7 @@
     },
     {
       "key": "couponCode",
-      "value": "ELITE50",
-      "type": "string"
-    },
-    {
-      "key": "signalId",
-      "value": "",
+      "value": "WELCOME20",
       "type": "string"
     }
   ],
@@ -169,8 +189,8 @@
           }
         },
         {
-          "name": "Login User",
-          "description": "Screen: Login\n\nBody // example:\n- email: alex.trader@example.com\n- password: Password123!",
+          "name": "Login User (Ahmed)",
+          "description": "Screen: Login\n\nDemo users (password for all: 1qazxsw2):\n- ahmed.user@gmail.com\n- fatima.user@gmail.com\n- omar.user@gmail.com\n- sara.user@gmail.com\n- yusuf.user@gmail.com\n- aisha.user@gmail.com\n- karim.user@gmail.com",
           "event": [
             {
               "listen": "test",
@@ -203,7 +223,379 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"email\": \"{{userEmail}}\",\n  \"password\": \"Password123!\"\n}",
+              "raw": "{\n  \"email\": \"ahmed.user@gmail.com\",\n  \"password\": \"1qazxsw2\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/user/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "user",
+                "login"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Login User (Fatima)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json && json.data) {",
+                  "  const token = json.data.token || json.data.accessToken;",
+                  "  if (token) {",
+                  "    pm.collectionVariables.set('accessToken', token);",
+                  "    pm.collectionVariables.set('token', token);",
+                  "  }",
+                  "  if (json.data.user) {",
+                  "    if (json.data.user._id) pm.collectionVariables.set('userId', json.data.user._id);",
+                  "    if (json.data.user.email) pm.collectionVariables.set('userEmail', json.data.user.email);",
+                  "  }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"fatima.user@gmail.com\",\n  \"password\": \"1qazxsw2\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/user/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "user",
+                "login"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Login User (Omar)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json && json.data) {",
+                  "  const token = json.data.token || json.data.accessToken;",
+                  "  if (token) {",
+                  "    pm.collectionVariables.set('accessToken', token);",
+                  "    pm.collectionVariables.set('token', token);",
+                  "  }",
+                  "  if (json.data.user) {",
+                  "    if (json.data.user._id) pm.collectionVariables.set('userId', json.data.user._id);",
+                  "    if (json.data.user.email) pm.collectionVariables.set('userEmail', json.data.user.email);",
+                  "  }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"omar.user@gmail.com\",\n  \"password\": \"1qazxsw2\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/user/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "user",
+                "login"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Login User (Sara)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json && json.data) {",
+                  "  const token = json.data.token || json.data.accessToken;",
+                  "  if (token) {",
+                  "    pm.collectionVariables.set('accessToken', token);",
+                  "    pm.collectionVariables.set('token', token);",
+                  "  }",
+                  "  if (json.data.user) {",
+                  "    if (json.data.user._id) pm.collectionVariables.set('userId', json.data.user._id);",
+                  "    if (json.data.user.email) pm.collectionVariables.set('userEmail', json.data.user.email);",
+                  "  }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"sara.user@gmail.com\",\n  \"password\": \"1qazxsw2\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/user/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "user",
+                "login"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Login User (Yusuf)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json && json.data) {",
+                  "  const token = json.data.token || json.data.accessToken;",
+                  "  if (token) {",
+                  "    pm.collectionVariables.set('accessToken', token);",
+                  "    pm.collectionVariables.set('token', token);",
+                  "  }",
+                  "  if (json.data.user) {",
+                  "    if (json.data.user._id) pm.collectionVariables.set('userId', json.data.user._id);",
+                  "    if (json.data.user.email) pm.collectionVariables.set('userEmail', json.data.user.email);",
+                  "  }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"yusuf.user@gmail.com\",\n  \"password\": \"1qazxsw2\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/user/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "user",
+                "login"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Login User (Aisha)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json && json.data) {",
+                  "  const token = json.data.token || json.data.accessToken;",
+                  "  if (token) {",
+                  "    pm.collectionVariables.set('accessToken', token);",
+                  "    pm.collectionVariables.set('token', token);",
+                  "  }",
+                  "  if (json.data.user) {",
+                  "    if (json.data.user._id) pm.collectionVariables.set('userId', json.data.user._id);",
+                  "    if (json.data.user.email) pm.collectionVariables.set('userEmail', json.data.user.email);",
+                  "  }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"aisha.user@gmail.com\",\n  \"password\": \"1qazxsw2\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/user/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "user",
+                "login"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Login User (Karim)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json && json.data) {",
+                  "  const token = json.data.token || json.data.accessToken;",
+                  "  if (token) {",
+                  "    pm.collectionVariables.set('accessToken', token);",
+                  "    pm.collectionVariables.set('token', token);",
+                  "  }",
+                  "  if (json.data.user) {",
+                  "    if (json.data.user._id) pm.collectionVariables.set('userId', json.data.user._id);",
+                  "    if (json.data.user.email) pm.collectionVariables.set('userEmail', json.data.user.email);",
+                  "  }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"karim.user@gmail.com\",\n  \"password\": \"1qazxsw2\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/user/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "user",
+                "login"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Login User (Variable Email)",
+          "description": "Uses {{userEmail}} and {{userPassword}} collection variables.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json && json.data) {",
+                  "  const token = json.data.token || json.data.accessToken;",
+                  "  if (token) {",
+                  "    pm.collectionVariables.set('accessToken', token);",
+                  "    pm.collectionVariables.set('token', token);",
+                  "  }",
+                  "  if (json.data.user) {",
+                  "    if (json.data.user._id) pm.collectionVariables.set('userId', json.data.user._id);",
+                  "    if (json.data.user.email) pm.collectionVariables.set('userEmail', json.data.user.email);",
+                  "  }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{userEmail}}\",\n  \"password\": \"{{userPassword}}\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -572,7 +964,7 @@
       "item": [
         {
           "name": "Validate Coupon Code",
-          "description": "Screen: Checkout — Coupon input\n\nBody // example:\n- code: ELITE50\n\nOther example codes: FOREX20, CRYPTO30",
+          "description": "Body // example:\n- code: WELCOME20\n\nOther codes: FOREX15, CRYPTO10, FLAT5USD",
           "request": {
             "method": "POST",
             "header": [
@@ -606,11 +998,65 @@
     },
     {
       "name": "Purchase & My Plan",
-      "description": "App screens: Paywall, Stripe Payment, My Subscription, Purchase History",
+      "description": "App screens: Paywall, Stripe Payment, My Subscription, Purchase History\n\nSuggested flow:\n1. Login User\n2. Get All Subscription Plans → save {{subscriptionId}}\n3. Initiate Paid Purchase or Free Trial\n4. Get Current Active Subscription",
       "item": [
         {
+          "name": "Get All Subscription Plans",
+          "description": "Screen: Paywall / Choose Plan before purchase\n\nReturns all active plans (VIP, Forex, Crypto) with price, features, billing options.\n\nPublic — no auth required. Saves first plan id to {{subscriptionId}}.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "if (json.data && json.data.length) {",
+                  "  pm.collectionVariables.set('subscriptionId', json.data[0]._id);",
+                  "  pm.collectionVariables.set('subscriptionName', json.data[0].name);",
+                  "  const vip = json.data.find(p => (p.name || '').toUpperCase() === 'VIP');",
+                  "  if (vip) {",
+                  "    pm.collectionVariables.set('subscriptionId', vip._id);",
+                  "    pm.collectionVariables.set('subscriptionName', vip.name);",
+                  "  }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/subscription",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "subscription"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Subscription Plan By ID",
+          "description": "Screen: Plan details before checkout\n\nUse {{subscriptionId}} from Get All Subscription Plans.",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/subscription/{{subscriptionId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "subscription",
+                "{{subscriptionId}}"
+              ]
+            }
+          }
+        },
+        {
           "name": "Initiate Paid Purchase (With Coupon)",
-          "description": "Screen: Checkout → Pay with Stripe\n\nBody // example:\n- subscriptionId: from Get All Plans\n- isFreeTrial: false\n- couponCode: ELITE50\n- billingCycle: monthly\n\nResponse:\n- checkoutUrl → open in app WebView/browser\n- paymentRequired: true → wait for Stripe, then refresh current subscription",
+          "description": "Screen: Checkout → Pay with Stripe\n\nBody // example:\n- subscriptionId: from Get All Plans\n- isFreeTrial: false\n- couponCode: WELCOME20\n- billingCycle: monthly\n\nResponse:\n- checkoutUrl → open in app WebView/browser\n- paymentRequired: true → wait for Stripe, then refresh current subscription",
           "event": [
             {
               "listen": "test",
@@ -774,6 +1220,1025 @@
       ]
     },
     {
+      "name": "Signals & Market",
+      "description": "App screens: Signal list, Signal detail (Summary + Details tabs), Chart, Favorites, Alerts",
+      "item": [
+        {
+          "name": "Get App Signals (List)",
+          "description": "Screen: Signals home list. Saves first signal id to {{signalId}}.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.data && json.data.signals && json.data.signals.length) {",
+                  "  pm.collectionVariables.set('signalId', json.data.signals[0].id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/signal/app",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "signal",
+                "app"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Signal Detail",
+          "description": "Screen: Signal Detail (Summary + Details tabs)\n\nReturns header, live, summary, details, userActions, chart overlays.",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/signal/app/{{signalId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "signal",
+                "app",
+                "{{signalId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Signal Market Data",
+          "description": "Screen: Live price + statistics block (can poll separately from detail).",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/signal/app/{{signalId}}/market",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "signal",
+                "app",
+                "{{signalId}}",
+                "market"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Signal Chart",
+          "description": "Screen: Candlestick chart. Query // example: timeframe=1W",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/signal/app/{{signalId}}/chart",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "signal",
+                "app",
+                "{{signalId}}",
+                "chart"
+              ],
+              "query": [
+                {
+                  "key": "timeframe",
+                  "value": "1W"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Global Market Hours",
+          "description": "Screen: Market hours info",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/signal/app/market-hours",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "signal",
+                "app",
+                "market-hours"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Add Signal Favorite",
+          "description": "Screen: Star icon on signal detail",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"enabled\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/signal/app/{{signalId}}/favorite",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "signal",
+                "app",
+                "{{signalId}}",
+                "favorite"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Remove Signal Favorite",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"enabled\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/signal/app/{{signalId}}/favorite",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "signal",
+                "app",
+                "{{signalId}}",
+                "favorite"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Enable Signal Alerts",
+          "description": "Screen: \"Enable Alerts\" button",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"enabled\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/signal/app/{{signalId}}/alerts",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "signal",
+                "app",
+                "{{signalId}}",
+                "alerts"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Disable Signal Alerts",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"enabled\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/signal/app/{{signalId}}/alerts",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "signal",
+                "app",
+                "{{signalId}}",
+                "alerts"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Posts",
+      "description": "App screens: Posts feed (empty + list), post detail, comments thread, like/share actions.\n\nRequires **active subscription** (premium content).\n\nSuggested flow:\n1. Login User\n2. Get Posts Feed → saves {{postId}}\n3. Get Post Detail\n4. Get Post Comments → saves {{commentId}}\n5. Add Comment / Edit / Delete Comment\n6. Toggle Like Post / Toggle Like Comment / Share Post",
+      "item": [
+        {
+          "name": "Get Posts Feed",
+          "description": "Screen: Posts home — scrollable cards with category badge, author, likes/comments/shares.\n\nQuery params // example:\n- page=1, limit=10\n- category=Education | Market Update | News | All\n- search=bitcoin",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "if (json.data && json.data.posts && json.data.posts.length) {",
+                  "  pm.collectionVariables.set('postId', json.data.posts[0].id);",
+                  "  const education = json.data.posts.find(p => (p.category || '').toLowerCase().includes('education'));",
+                  "  if (education) pm.collectionVariables.set('postId', education.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/post/app",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "post",
+                "app"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                },
+                {
+                  "key": "category",
+                  "value": "All",
+                  "disabled": true
+                },
+                {
+                  "key": "search",
+                  "value": "",
+                  "disabled": true
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Posts Feed — Filter Education",
+          "description": "Screen: Posts filtered by category chip (Education).",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/post/app",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "post",
+                "app"
+              ],
+              "query": [
+                {
+                  "key": "category",
+                  "value": "Education"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Post Detail",
+          "description": "Screen: Expanded post card — full body, cover image, engagement counts, isLikedByMe.",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/post/app/{{postId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "post",
+                "app",
+                "{{postId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Post Comments",
+          "description": "Screen: Comments — post summary header + ALL COMMENTS list with likes.\n\nSaves first comment id to {{commentId}}.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "if (json.data && json.data.comments && json.data.comments.length) {",
+                  "  pm.collectionVariables.set('commentId', json.data.comments[0].id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/post/app/{{postId}}/comments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "post",
+                "app",
+                "{{postId}}",
+                "comments"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Add Comment",
+          "description": "Screen: \"Write a comment...\" input + send.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "const json = pm.response.json();",
+                  "if (json.data && json.data.id) {",
+                  "  pm.collectionVariables.set('commentId', json.data.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"Solid analysis — thanks for sharing!\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/post/app/{{postId}}/comments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "post",
+                "app",
+                "{{postId}}",
+                "comments"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Edit Comment",
+          "description": "Screen: Edit own comment (only comment owner).\n\nResponse includes updated comment with canEdit/canDelete flags.",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"Updated comment — great insight on R:R!\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/post/app/comments/{{commentId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "post",
+                "app",
+                "comments",
+                "{{commentId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Delete Comment",
+          "description": "Screen: Delete own comment (only comment owner).\n\nReturns updated commentsCount for the post.",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/post/app/comments/{{commentId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "post",
+                "app",
+                "comments",
+                "{{commentId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Toggle Post Like",
+          "description": "Screen: Heart icon on post card.\n\nSingle toggle API — no body needed.\nAlready liked → unlikes. Not liked → likes.\n\nResponse: { isLiked, likesCount }",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/post/app/{{postId}}/like",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "post",
+                "app",
+                "{{postId}}",
+                "like"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Toggle Comment Like",
+          "description": "Screen: Heart icon on comment.\n\nSingle toggle API — same as post like.\nResponse: { isLiked, likesCount }",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/post/app/comments/{{commentId}}/like",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "post",
+                "app",
+                "comments",
+                "{{commentId}}",
+                "like"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Share Post",
+          "description": "Screen: Share icon — increments sharesCount.",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/post/app/{{postId}}/share",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "post",
+                "app",
+                "{{postId}}",
+                "share"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Notifications",
+      "description": "App screen: Bell icon tab — alerts list with unread badge.\n\nSuggested flow:\n1. Login User\n2. Get Unread Count → badge on bell icon\n3. Get Notifications → saves {{notificationId}}\n4. Mark Notification Read / Mark All Read",
+      "item": [
+        {
+          "name": "Get Unread Count",
+          "description": "Screen: Bell icon red dot badge.\n\nReturns { unreadCount, totalCount } for the logged-in user.",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/notification/app/unread-count",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "notification",
+                "app",
+                "unread-count"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Notifications",
+          "description": "Screen: Notifications list — title, message, timeAgo, isRead, category.\n\nFilters by user audience (All Users + plan/trial audience).\n\nQuery // example: page=1, limit=20, search=signal",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "if (json.data && json.data.notifications && json.data.notifications.length) {",
+                  "  pm.collectionVariables.set('notificationId', json.data.notifications[0].id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/notification/app",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "notification",
+                "app"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                },
+                {
+                  "key": "search",
+                  "value": "",
+                  "disabled": true
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Mark Notification Read",
+          "description": "Screen: Tap notification → mark as read.\n\nReturns updated notification + new unreadCount.",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/notification/app/{{notificationId}}/read",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "notification",
+                "app",
+                "{{notificationId}}",
+                "read"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Mark All Notifications Read",
+          "description": "Screen: Mark all as read action — clears unread badge.",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/notification/app/read-all",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "notification",
+                "app",
+                "read-all"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "History",
+      "description": "App screen: History — performance overview (wins/losses/breakeven/win rate) + closed signals list.\n\nRequires **active subscription**.\n\nQuery params // example:\n- result=Win | Loss | Breakeven | All\n- category=Crypto | Forex | Index\n- search=NAS (asset search)\n- page=1, limit=10",
+      "item": [
+        {
+          "name": "Get Signal History (All)",
+          "description": "Screen: History v-2 — PERFORMANCE OVERVIEW + CLOSED SIGNALS list.\n\nReturns performanceOverview, signals[], pagination, totalClosedSignals.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "if (json.data && json.data.performanceOverview) {",
+                  "  pm.expect(json.data.performanceOverview).to.have.property('winRate');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/signal/app/history",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "signal",
+                "app",
+                "history"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Signal History — Wins Only",
+          "description": "Screen: Filter chip → Win",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/signal/app/history",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "signal",
+                "app",
+                "history"
+              ],
+              "query": [
+                {
+                  "key": "result",
+                  "value": "Win"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Signal History — Losses Only",
+          "description": "Screen: Filter chip → Loss",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/signal/app/history",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "signal",
+                "app",
+                "history"
+              ],
+              "query": [
+                {
+                  "key": "result",
+                  "value": "Loss"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Signal History — Breakeven",
+          "description": "Screen: Filter chip → Break / Breakeven",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/signal/app/history",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "signal",
+                "app",
+                "history"
+              ],
+              "query": [
+                {
+                  "key": "result",
+                  "value": "Breakeven"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Signal History — Search NAS100",
+          "description": "Screen: Search bar — \"Search Signals...\"",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/signal/app/history",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "signal",
+                "app",
+                "history"
+              ],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "NAS"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Signal History — Crypto Filter",
+          "description": "Screen: Category filter (Crypto)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/signal/app/history",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "signal",
+                "app",
+                "history"
+              ],
+              "query": [
+                {
+                  "key": "category",
+                  "value": "Crypto"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
       "name": "Legal Pages",
       "description": "App screens: Settings → Privacy Policy, Terms, About Us (read-only HTML content)",
       "item": [
@@ -824,265 +2289,6 @@
               "path": [
                 "management",
                 "about"
-              ]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "name": "Signals (Core App)",
-      "description": "App screens: Signals Home (market hours), All Signals list\n\n**Access rules:**\n- Free users → previous day active signals only\n- Active subscription → today's active signals filtered by plan (VIP/Forex/Crypto)\n\n**List query params:** category, searchTerm, sort, page, limit\n**Category filters:** All | Forex | Crypto | Gold",
-      "item": [
-        {
-          "name": "Get Global Market Hours",
-          "description": "Screen: Signals home → Global Market Hours cards\n\nReturns OPEN/CLOSED status, local time, and UTC session ranges for Sydney, Tokyo, London, New York.",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{accessToken}}"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/signal/app/market-hours",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "signal",
-                "app",
-                "market-hours"
-              ]
-            }
-          }
-        },
-        {
-          "name": "Get All Active Signals",
-          "description": "Screen: Signals home preview + All Signals list\n\nQuery params:\n- category: All | Forex | Crypto | Gold\n- searchTerm: BTC, EUR/USD, XAU...\n- sort: -publishedAt (default), publishedAt, -createdAt\n- page: 1\n- limit: 10\n\nAlso accepts legacy alias `search` instead of `searchTerm`.",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "const json = pm.response.json();",
-                  "if (json.data && json.data.signals && json.data.signals.length) {",
-                  "  pm.collectionVariables.set('signalId', json.data.signals[0].id);",
-                  "}"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{accessToken}}"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/signal/app?category=All&searchTerm=&sort=-publishedAt&page=1&limit=10",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "signal",
-                "app"
-              ],
-              "query": [
-                {
-                  "key": "category",
-                  "value": "All",
-                  "description": "All | Forex | Crypto | Gold"
-                },
-                {
-                  "key": "searchTerm",
-                  "value": "",
-                  "description": "Search asset or signal type e.g. BTC, EUR/USD"
-                },
-                {
-                  "key": "sort",
-                  "value": "-publishedAt",
-                  "description": "Sort field. Prefix with - for descending"
-                },
-                {
-                  "key": "page",
-                  "value": "1"
-                },
-                {
-                  "key": "limit",
-                  "value": "10"
-                }
-              ]
-            }
-          }
-        },
-        {
-          "name": "Get Active Signals By Category (Crypto)",
-          "description": "Screen: All Signals → Crypto filter chip",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{accessToken}}"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/signal/app?category=Crypto&sort=-publishedAt&page=1&limit=10",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "signal",
-                "app"
-              ],
-              "query": [
-                {
-                  "key": "category",
-                  "value": "Crypto"
-                },
-                {
-                  "key": "sort",
-                  "value": "-publishedAt"
-                },
-                {
-                  "key": "page",
-                  "value": "1"
-                },
-                {
-                  "key": "limit",
-                  "value": "10"
-                }
-              ]
-            }
-          }
-        },
-        {
-          "name": "Search Active Signals",
-          "description": "Screen: All Signals → search bar\n\nExample search: BTC",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{accessToken}}"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/signal/app?searchTerm=BTC&category=All&page=1&limit=10",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "signal",
-                "app"
-              ],
-              "query": [
-                {
-                  "key": "searchTerm",
-                  "value": "BTC"
-                },
-                {
-                  "key": "category",
-                  "value": "All"
-                },
-                {
-                  "key": "page",
-                  "value": "1"
-                },
-                {
-                  "key": "limit",
-                  "value": "10"
-                }
-              ]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "name": "Notifications",
-      "description": "App screen: Notifications tab\n\nReturns sent notifications targeted to the logged-in user audience.\n\nQuery params: searchTerm, sort, page, limit",
-      "item": [
-        {
-          "name": "Get App Notifications",
-          "description": "Screen: Notifications list\n\nQuery params:\n- searchTerm: search in title/message\n- sort: -sentAt (default), sentAt, -createdAt\n- page: 1\n- limit: 10",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{accessToken}}"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/notification/app?searchTerm=&sort=-sentAt&page=1&limit=10",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "notification",
-                "app"
-              ],
-              "query": [
-                {
-                  "key": "searchTerm",
-                  "value": "",
-                  "description": "Search notification title or message"
-                },
-                {
-                  "key": "sort",
-                  "value": "-sentAt"
-                },
-                {
-                  "key": "page",
-                  "value": "1"
-                },
-                {
-                  "key": "limit",
-                  "value": "10"
-                }
-              ]
-            }
-          }
-        },
-        {
-          "name": "Search App Notifications",
-          "description": "Example search in notifications feed",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{accessToken}}"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/notification/app?searchTerm=signal&page=1&limit=10",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "notification",
-                "app"
-              ],
-              "query": [
-                {
-                  "key": "searchTerm",
-                  "value": "signal"
-                },
-                {
-                  "key": "page",
-                  "value": "1"
-                },
-                {
-                  "key": "limit",
-                  "value": "10"
-                }
               ]
             }
           }
