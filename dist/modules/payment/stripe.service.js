@@ -18,6 +18,7 @@ const config_1 = require("../../config");
 const user_model_1 = require("../../modules/basic_modules/user/user.model");
 const subscription_model_1 = require("../../modules/basic_modules/subscription/subscription.model");
 const coupon_model_1 = require("../../modules/basic_modules/coupon/coupon.model");
+const planSnapshot_1 = require("../../utils/planSnapshot");
 const resolveSubscriptionType = (name) => {
     const value = (name || "").toLowerCase();
     if (value.includes("forex"))
@@ -69,10 +70,16 @@ const handleStripeWebhook = (req, res) => __awaiter(void 0, void 0, void 0, func
                 const endDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
                 const paidAmount = (session.amount_total || 0) / 100;
                 if (!purchase) {
+                    const subscription = subscriptionId
+                        ? yield subscription_model_1.SubscriptionModel.findById(subscriptionId)
+                        : null;
                     purchase = new subscription_model_1.PurchaseModel({
                         userId,
                         subscriptionId,
                         subscriptionName: subscriptionName || "VIP",
+                        planSnapshot: subscription
+                            ? (0, planSnapshot_1.buildPlanSnapshot)(subscription, "monthly")
+                            : undefined,
                         stripeCustomerId: session.customer,
                         stripeSubscriptionId: session.subscription,
                         startDate: new Date(),
@@ -84,6 +91,12 @@ const handleStripeWebhook = (req, res) => __awaiter(void 0, void 0, void 0, func
                     });
                 }
                 else {
+                    if (!purchase.planSnapshot && purchase.subscriptionId) {
+                        const subscription = yield subscription_model_1.SubscriptionModel.findById(purchase.subscriptionId);
+                        if (subscription) {
+                            purchase.planSnapshot = (0, planSnapshot_1.buildPlanSnapshot)(subscription, purchase.billingCycle || "monthly");
+                        }
+                    }
                     purchase.stripeCustomerId = session.customer;
                     purchase.stripeSubscriptionId = session.subscription;
                     purchase.paymentStatus = "completed";

@@ -28,6 +28,7 @@ const SubscriptionSchema = new Schema<ISubscription>(
       default: "basic",
     },
     signalTypes: [{ type: String }],
+    allowedCategories: [{ type: String }],
     stripePriceId: { type: String },
     stripeProductId: { type: String },
     isActive: { type: Boolean, default: true },
@@ -51,6 +52,23 @@ const PurchaseSchema = new Schema<IPurchase>(
       type: String,
       required: true,
     },
+    planSnapshot: {
+      planName: { type: String },
+      subscriptionId: { type: String },
+      maxSignalsPerDay: { type: Number },
+      signalTypes: [{ type: String }],
+      allowedCategories: [{ type: String }],
+      includesGoldSignals: { type: Boolean },
+      includesTechnicalAnalysis: { type: Boolean },
+      includesMarketSentiment: { type: Boolean },
+      includesEconomicCalendar: { type: Boolean },
+      support: { type: String },
+      features: [{ type: String }],
+      yearlyEnabled: { type: Boolean },
+      priceAtPurchase: { type: Number },
+      billingCycle: { type: String, enum: ["monthly", "yearly"] },
+      capturedAt: { type: Date },
+    },
     stripeCustomerId: { type: String },
     stripeSubscriptionId: { type: String },
     startDate: { type: Date, required: true, default: Date.now },
@@ -72,6 +90,7 @@ const PurchaseSchema = new Schema<IPurchase>(
     cancelledAt: { type: Date },
     renewalAttempts: { type: Number, default: 0 },
     isActive: { type: Boolean, default: true },
+    verificationOrder: { type: Number },
   } as any,
   { timestamps: true }
 );
@@ -83,6 +102,7 @@ const TrialConfigSchema = new Schema<ITrialConfig>(
     promoDuration: { type: String, default: "1 Month (30 Days)" },
     trialOn: { type: Boolean, default: true },
     trialDuration: { type: String, default: "2 Days" },
+    verifiedUserCount: { type: Number, default: 0 },
   },
   { timestamps: true }
 );

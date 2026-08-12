@@ -12,16 +12,6 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.validateAndApplyCoupon = exports.deleteCoupon = exports.updateCoupon = exports.createCoupon = exports.getCouponByCode = exports.getCouponById = exports.getAllCoupons = void 0;
 const coupon_model_1 = require("./coupon.model");
 const getAllCoupons = () => __awaiter(void 0, void 0, void 0, function* () {
-    const count = yield coupon_model_1.CouponModel.countDocuments({});
-    if (count === 0) {
-        // Seed initial database records if DB is empty
-        yield coupon_model_1.CouponModel.create([
-            { code: "ELITE50", discount: 50, discountType: "percentage", limit: 100, used: 67, status: "Active", expiry: "Jul 31, 2026" },
-            { code: "VIPFREE", discount: 100, discountType: "percentage", limit: 10, used: 10, status: "Exhausted", expiry: "Jul 25, 2026" },
-            { code: "FOREX20", discount: 20, discountType: "percentage", limit: 200, used: 43, status: "Active", expiry: "Aug 15, 2026" },
-            { code: "CRYPTO30", discount: 30, discountType: "percentage", limit: 50, used: 12, status: "Active", expiry: "Aug 01, 2026" },
-        ]);
-    }
     return yield coupon_model_1.CouponModel.find({}).sort({ createdAt: -1 });
 });
 exports.getAllCoupons = getAllCoupons;

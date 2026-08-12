@@ -3,6 +3,15 @@ import { ISubscription, IPurchase, ITrialConfig } from "./subscription.interface
 import { UserModel } from "../user/user.model";
 import { validateAndApplyCoupon } from "../coupon/coupon.service";
 import { createCheckoutSession } from "../../payment/stripe.service";
+import { buildPlanSnapshot } from "../../../utils/planSnapshot";
+import {
+  getPromoClaimedCount,
+  getOrCreateTrialConfig,
+  resolveVerificationOrderForUser,
+  resolveWelcomeTrialForOrder,
+  syncVerifiedUserCountIfNeeded,
+} from "../../../utils/welcomeTrial";
+import { upsertUserPurchase } from "../../../utils/purchaseHelper";
 import AppError from "../../../errors/AppError";
 import httpStatus from "http-status";
 
@@ -36,28 +45,17 @@ export const deleteSubscriptionPlan = async (id: string) => {
 
 // Trial & Promo Configuration Services
 export const getTrialConfig = async () => {
-  let config = await TrialConfigModel.findOne({});
-  if (!config) {
-    config = await TrialConfigModel.create({
-      promoOn: true,
-      promoLimit: 100,
-      promoDuration: "1 Month (30 Days)",
-      trialOn: true,
-      trialDuration: "2 Days",
-    });
-  }
+  let config = await getOrCreateTrialConfig();
+  config = await syncVerifiedUserCountIfNeeded(config);
 
-  const claimedCount = await UserModel.countDocuments({
-    role: "user",
-    isDeleted: false,
-    promoAccessUsed: true,
-  });
+  const claimedCount = getPromoClaimedCount(config);
 
   const subscriptionStats = await getSubscriptionStats();
 
   return {
-    ...config.toObject(),
+    ...config,
     claimedCount,
+    verifiedUserCount: config.verifiedUserCount || 0,
     subscriptionStats,
   };
 };
@@ -105,6 +103,10 @@ export const getUserActiveSubscription = async (userId: string) => {
 };
 
 export const createPurchase = async (purchaseData: Partial<IPurchase>) => {
+  if (purchaseData.userId) {
+    return upsertUserPurchase(String(purchaseData.userId), purchaseData);
+  }
+
   const purchase = new PurchaseModel(purchaseData);
   return await purchase.save();
 };
@@ -162,7 +164,15 @@ export const getFreeTrialEligibility = async (userId: string) => {
     throw new AppError(httpStatus.NOT_FOUND, "User not found.");
   }
 
-  const config = await getTrialConfig();
+  const configDoc = await TrialConfigModel.findOne({});
+  const config = configDoc || {
+    promoOn: true,
+    promoLimit: 100,
+    promoDuration: "1 Month (30 Days)",
+    trialOn: true,
+    trialDuration: "2 Days",
+  };
+
   const trialPurchase = await PurchaseModel.findOne({
     userId,
     isFreeTrial: true,
@@ -185,7 +195,12 @@ export const getFreeTrialEligibility = async (userId: string) => {
       Boolean(user.subscriptionEndDate) &&
       new Date(user.subscriptionEndDate) >= new Date());
 
-  if (hasUsedFreeTrial) {
+  const hasActiveTrial =
+    user.subscriptionStatus === "trial" &&
+    Boolean(user.subscriptionEndDate) &&
+    new Date(user.subscriptionEndDate) >= new Date();
+
+  if (hasUsedFreeTrial || hasActiveTrial || user.hasUsedFreeAccess) {
     return {
       canStart: false,
       reason: "You have already used your free trial on this account.",
@@ -206,10 +221,11 @@ export const getFreeTrialEligibility = async (userId: string) => {
     };
   }
 
-  const promoAvailable =
-    config.promoOn && (config.claimedCount || 0) < (config.promoLimit || 0);
+  const verificationOrder = await resolveVerificationOrderForUser(userId);
+  const isPromoEligible =
+    config.promoOn && verificationOrder > 0 && verificationOrder <= (config.promoLimit || 100);
 
-  if (!config.trialOn && !promoAvailable) {
+  if (!isPromoEligible && !config.trialOn) {
     return {
       canStart: false,
       reason: "Free trial is currently unavailable.",
@@ -225,7 +241,8 @@ export const getFreeTrialEligibility = async (userId: string) => {
     hasUsedFreeTrial: false,
     hasActivePaidSubscription: false,
     hasUsedFreeAccess: user.hasUsedFreeAccess,
-    promoAvailable,
+    verificationOrder,
+    isPromoEligible,
     trialOn: config.trialOn,
   };
 };
@@ -240,17 +257,15 @@ const calculateDiscountedAmount = (price: number, coupon: any) => {
   return Math.max(0, price * (1 - Number(coupon.discount) / 100));
 };
 
-const parseDurationDays = (duration: string): number => {
-  const lower = duration.toLowerCase();
-  const monthMatch = lower.match(/(\d+)\s*month/);
-  if (monthMatch) return parseInt(monthMatch[1], 10) * 30;
-  const dayMatch = lower.match(/(\d+)\s*day/);
-  if (dayMatch) return parseInt(dayMatch[1], 10);
-  return 2;
-};
+const resolveTrialAccess = async (userId: string, verificationOrder?: number) => {
+  const user = await UserModel.findById(userId).select("isVerify");
+  if (!user?.isVerify) {
+    throw new AppError(
+      httpStatus.BAD_REQUEST,
+      "Please verify your email before starting a free trial.",
+    );
+  }
 
-const resolveTrialAccess = async (userId: string) => {
-  const config = await getTrialConfig();
   const eligibility = await getFreeTrialEligibility(userId);
 
   if (!eligibility.canStart) {
@@ -260,28 +275,98 @@ const resolveTrialAccess = async (userId: string) => {
     );
   }
 
-  const promoClaimedCount = await UserModel.countDocuments({
-    role: "user",
-    isDeleted: false,
-    promoAccessUsed: true,
-  });
+  const order =
+    verificationOrder || (await resolveVerificationOrderForUser(userId));
 
-  if (config.promoOn && promoClaimedCount < config.promoLimit) {
-    return {
-      days: parseDurationDays(config.promoDuration),
-      isPromo: true,
-      accessLabel: "promo",
-    };
+  if (!order) {
+    throw new AppError(
+      httpStatus.BAD_REQUEST,
+      "Verification order not found. Please verify your email first.",
+    );
   }
 
-  if (!config.trialOn) {
+  const trialAccess = await resolveWelcomeTrialForOrder(order);
+
+  if (!trialAccess) {
     throw new AppError(httpStatus.BAD_REQUEST, "Free trial is currently unavailable.");
   }
 
+  return trialAccess;
+};
+
+const activateFreeTrialPurchase = async (
+  userId: string,
+  subscription: ISubscription,
+  billingCycle: "monthly" | "yearly" = "monthly",
+  verificationOrder?: number,
+) => {
+  const trialAccess = await resolveTrialAccess(userId, verificationOrder);
+  const trialEndDate = new Date();
+  trialEndDate.setDate(trialEndDate.getDate() + trialAccess.days);
+
+  const purchase = await upsertUserPurchase(userId, {
+    subscriptionId: subscription._id,
+    subscriptionName: subscription.name,
+    planSnapshot: buildPlanSnapshot(subscription, billingCycle),
+    isFreeTrial: true,
+    paymentStatus: "completed",
+    isActive: true,
+    amount: 0,
+    startDate: new Date(),
+    endDate: trialEndDate,
+    freeTrialEndDate: trialEndDate,
+    billingCycle,
+    verificationOrder: trialAccess.verificationOrder,
+  });
+
+  await UserModel.findByIdAndUpdate(userId, {
+    subscriptionType: subscription.name,
+    subscriptionStatus: "trial",
+    subscriptionEndDate: trialEndDate,
+    freeTrialEndDate: trialEndDate,
+    hasUsedFreeAccess: true,
+    promoAccessUsed: trialAccess.isPromo,
+    currentSubscription: purchase._id,
+  });
+
+  return { purchase, trialAccess, trialEndDate };
+};
+
+export const autoActivateWelcomeTrial = async (
+  userId: string,
+  verificationOrder?: number,
+) => {
+  const user = await UserModel.findById(userId);
+  if (!user || user.role !== "user" || user.isDeleted) {
+    return null;
+  }
+
+  const eligibility = await getFreeTrialEligibility(userId);
+  if (!eligibility.canStart) {
+    return null;
+  }
+
+  const subscription =
+    (await SubscriptionModel.findOne({ name: "VIP", isActive: { $ne: false } })) ||
+    (await SubscriptionModel.findOne({ isActive: { $ne: false } }).sort({ createdAt: 1 }));
+
+  if (!subscription) {
+    return null;
+  }
+
+  const { purchase, trialAccess } = await activateFreeTrialPurchase(
+    userId,
+    subscription,
+    "monthly",
+    verificationOrder,
+  );
+
   return {
-    days: parseDurationDays(config.trialDuration),
-    isPromo: false,
-    accessLabel: "trial",
+    purchase,
+    accessType: trialAccess.accessLabel,
+    trialDays: trialAccess.days,
+    verificationOrder: trialAccess.verificationOrder,
+    planName: subscription.name,
   };
 };
 
@@ -338,38 +423,11 @@ export const initiateSubscriptionPurchase = async (
   endDate.setMonth(endDate.getMonth() + 1);
 
   if (options.isFreeTrial) {
-    const trialAccess = await resolveTrialAccess(normalizedUserId);
-    const trialEndDate = new Date();
-    trialEndDate.setDate(trialEndDate.getDate() + trialAccess.days);
-
-    await PurchaseModel.updateMany(
-      { userId: normalizedUserId, isActive: true },
-      { $set: { isActive: false } },
-    );
-
-    const purchase = await PurchaseModel.create({
-      userId: normalizedUserId,
-      subscriptionId: normalizedSubscriptionId,
-      subscriptionName,
-      isFreeTrial: true,
-      paymentStatus: "completed",
-      isActive: true,
-      amount: 0,
-      startDate: new Date(),
-      endDate: trialEndDate,
-      freeTrialEndDate: trialEndDate,
+    const { purchase, trialAccess } = await activateFreeTrialPurchase(
+      normalizedUserId,
+      subscription,
       billingCycle,
-    });
-
-    await UserModel.findByIdAndUpdate(normalizedUserId, {
-      subscriptionType: subscriptionName,
-      subscriptionStatus: "trial",
-      subscriptionEndDate: trialEndDate,
-      freeTrialEndDate: trialEndDate,
-      hasUsedFreeAccess: true,
-      promoAccessUsed: trialAccess.isPromo,
-      currentSubscription: purchase._id,
-    });
+    );
 
     return {
       purchase,
@@ -380,25 +438,19 @@ export const initiateSubscriptionPurchase = async (
       paymentRequired: false,
       accessType: trialAccess.accessLabel,
       trialDays: trialAccess.days,
+      verificationOrder: trialAccess.verificationOrder,
       nextStep: trialAccess.isPromo
-        ? `Promo access activated for ${trialAccess.days} days.`
-        : `Free trial activated for ${trialAccess.days} days.`,
+        ? `1-month free access activated for user #${trialAccess.verificationOrder}.`
+        : `2-day free trial activated for user #${trialAccess.verificationOrder}.`,
     };
   }
 
   const finalAmount = calculateDiscountedAmount(subscription.price, coupon);
 
-  if (finalAmount === 0) {
-    await PurchaseModel.updateMany(
-      { userId: normalizedUserId, isActive: true },
-      { $set: { isActive: false } },
-    );
-  }
-
-  const purchase = await PurchaseModel.create({
-    userId: normalizedUserId,
+  const purchase = await upsertUserPurchase(normalizedUserId, {
     subscriptionId: normalizedSubscriptionId,
     subscriptionName,
+    planSnapshot: buildPlanSnapshot(subscription, billingCycle),
     isFreeTrial: false,
     paymentStatus: finalAmount === 0 ? "completed" : "pending",
     isActive: finalAmount === 0,

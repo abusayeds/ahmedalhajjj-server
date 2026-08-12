@@ -12,11 +12,13 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.initiateSubscriptionPurchase = exports.getFreeTrialEligibility = exports.getUserTrialStatus = exports.cancelPurchase = exports.updatePurchaseStatus = exports.createPurchase = exports.getUserActiveSubscription = exports.getUserPurchases = exports.updateTrialConfig = exports.getSubscriptionStats = exports.getTrialConfig = exports.deleteSubscriptionPlan = exports.updateSubscriptionPlan = exports.createSubscriptionPlan = exports.getSubscriptionById = exports.getAllSubscriptions = void 0;
+exports.initiateSubscriptionPurchase = exports.autoActivateWelcomeTrial = exports.getFreeTrialEligibility = exports.getUserTrialStatus = exports.cancelPurchase = exports.updatePurchaseStatus = exports.createPurchase = exports.getUserActiveSubscription = exports.getUserPurchases = exports.updateTrialConfig = exports.getSubscriptionStats = exports.getTrialConfig = exports.deleteSubscriptionPlan = exports.updateSubscriptionPlan = exports.createSubscriptionPlan = exports.getSubscriptionById = exports.getAllSubscriptions = void 0;
 const subscription_model_1 = require("./subscription.model");
 const user_model_1 = require("../user/user.model");
 const coupon_service_1 = require("../coupon/coupon.service");
 const stripe_service_1 = require("../../payment/stripe.service");
+const planSnapshot_1 = require("../../../utils/planSnapshot");
+const welcomeTrial_1 = require("../../../utils/welcomeTrial");
 const AppError_1 = __importDefault(require("../../../errors/AppError"));
 const http_status_1 = __importDefault(require("http-status"));
 // Subscription Services
@@ -56,11 +58,8 @@ const getTrialConfig = () => __awaiter(void 0, void 0, void 0, function* () {
             trialDuration: "2 Days",
         });
     }
-    const claimedCount = yield user_model_1.UserModel.countDocuments({
-        role: "user",
-        isDeleted: false,
-        promoAccessUsed: true,
-    });
+    const promoLimit = config.promoLimit || 100;
+    const claimedCount = yield (0, welcomeTrial_1.countFirstPromoRegistrations)(promoLimit);
     const subscriptionStats = yield (0, exports.getSubscriptionStats)();
     return Object.assign(Object.assign({}, config.toObject()), { claimedCount,
         subscriptionStats });
@@ -150,7 +149,14 @@ const getFreeTrialEligibility = (userId) => __awaiter(void 0, void 0, void 0, fu
     if (!user) {
         throw new AppError_1.default(http_status_1.default.NOT_FOUND, "User not found.");
     }
-    const config = yield (0, exports.getTrialConfig)();
+    const configDoc = yield subscription_model_1.TrialConfigModel.findOne({});
+    const config = configDoc || {
+        promoOn: true,
+        promoLimit: 100,
+        promoDuration: "1 Month (30 Days)",
+        trialOn: true,
+        trialDuration: "2 Days",
+    };
     const trialPurchase = yield subscription_model_1.PurchaseModel.findOne({
         userId,
         isFreeTrial: true,
@@ -168,7 +174,10 @@ const getFreeTrialEligibility = (userId) => __awaiter(void 0, void 0, void 0, fu
         (user.subscriptionStatus === "active" &&
             Boolean(user.subscriptionEndDate) &&
             new Date(user.subscriptionEndDate) >= new Date());
-    if (hasUsedFreeTrial) {
+    const hasActiveTrial = user.subscriptionStatus === "trial" &&
+        Boolean(user.subscriptionEndDate) &&
+        new Date(user.subscriptionEndDate) >= new Date();
+    if (hasUsedFreeTrial || hasActiveTrial || user.hasUsedFreeAccess) {
         return {
             canStart: false,
             reason: "You have already used your free trial on this account.",
@@ -186,8 +195,9 @@ const getFreeTrialEligibility = (userId) => __awaiter(void 0, void 0, void 0, fu
             hasUsedFreeAccess: user.hasUsedFreeAccess,
         };
     }
-    const promoAvailable = config.promoOn && (config.claimedCount || 0) < (config.promoLimit || 0);
-    if (!config.trialOn && !promoAvailable) {
+    const registrationNumber = yield (0, welcomeTrial_1.ensureRegistrationNumber)(userId);
+    const isPromoEligible = config.promoOn && registrationNumber > 0 && registrationNumber <= (config.promoLimit || 100);
+    if (!isPromoEligible && !config.trialOn) {
         return {
             canStart: false,
             reason: "Free trial is currently unavailable.",
@@ -202,7 +212,8 @@ const getFreeTrialEligibility = (userId) => __awaiter(void 0, void 0, void 0, fu
         hasUsedFreeTrial: false,
         hasActivePaidSubscription: false,
         hasUsedFreeAccess: user.hasUsedFreeAccess,
-        promoAvailable,
+        registrationNumber,
+        isPromoEligible,
         trialOn: config.trialOn,
     };
 });
@@ -215,43 +226,72 @@ const calculateDiscountedAmount = (price, coupon) => {
     }
     return Math.max(0, price * (1 - Number(coupon.discount) / 100));
 };
-const parseDurationDays = (duration) => {
-    const lower = duration.toLowerCase();
-    const monthMatch = lower.match(/(\d+)\s*month/);
-    if (monthMatch)
-        return parseInt(monthMatch[1], 10) * 30;
-    const dayMatch = lower.match(/(\d+)\s*day/);
-    if (dayMatch)
-        return parseInt(dayMatch[1], 10);
-    return 2;
-};
 const resolveTrialAccess = (userId) => __awaiter(void 0, void 0, void 0, function* () {
-    const config = yield (0, exports.getTrialConfig)();
     const eligibility = yield (0, exports.getFreeTrialEligibility)(userId);
     if (!eligibility.canStart) {
         throw new AppError_1.default(http_status_1.default.BAD_REQUEST, eligibility.reason || "Free trial is not available for this account.");
     }
-    const promoClaimedCount = yield user_model_1.UserModel.countDocuments({
-        role: "user",
-        isDeleted: false,
-        promoAccessUsed: true,
-    });
-    if (config.promoOn && promoClaimedCount < config.promoLimit) {
-        return {
-            days: parseDurationDays(config.promoDuration),
-            isPromo: true,
-            accessLabel: "promo",
-        };
-    }
-    if (!config.trialOn) {
+    const registrationNumber = yield (0, welcomeTrial_1.ensureRegistrationNumber)(userId);
+    const trialAccess = yield (0, welcomeTrial_1.resolveWelcomeTrialForRegistration)(registrationNumber);
+    if (!trialAccess) {
         throw new AppError_1.default(http_status_1.default.BAD_REQUEST, "Free trial is currently unavailable.");
     }
+    return trialAccess;
+});
+const activateFreeTrialPurchase = (userId_1, subscription_1, ...args_1) => __awaiter(void 0, [userId_1, subscription_1, ...args_1], void 0, function* (userId, subscription, billingCycle = "monthly") {
+    const trialAccess = yield resolveTrialAccess(userId);
+    const trialEndDate = new Date();
+    trialEndDate.setDate(trialEndDate.getDate() + trialAccess.days);
+    yield subscription_model_1.PurchaseModel.updateMany({ userId, isActive: true }, { $set: { isActive: false } });
+    const purchase = yield subscription_model_1.PurchaseModel.create({
+        userId,
+        subscriptionId: subscription._id,
+        subscriptionName: subscription.name,
+        planSnapshot: (0, planSnapshot_1.buildPlanSnapshot)(subscription, billingCycle),
+        isFreeTrial: true,
+        paymentStatus: "completed",
+        isActive: true,
+        amount: 0,
+        startDate: new Date(),
+        endDate: trialEndDate,
+        freeTrialEndDate: trialEndDate,
+        billingCycle,
+    });
+    yield user_model_1.UserModel.findByIdAndUpdate(userId, {
+        subscriptionType: subscription.name,
+        subscriptionStatus: "trial",
+        subscriptionEndDate: trialEndDate,
+        freeTrialEndDate: trialEndDate,
+        hasUsedFreeAccess: true,
+        promoAccessUsed: trialAccess.isPromo,
+        currentSubscription: purchase._id,
+    });
+    return { purchase, trialAccess, trialEndDate };
+});
+const autoActivateWelcomeTrial = (userId) => __awaiter(void 0, void 0, void 0, function* () {
+    const user = yield user_model_1.UserModel.findById(userId);
+    if (!user || user.role !== "user" || user.isDeleted) {
+        return null;
+    }
+    const eligibility = yield (0, exports.getFreeTrialEligibility)(userId);
+    if (!eligibility.canStart) {
+        return null;
+    }
+    const subscription = (yield subscription_model_1.SubscriptionModel.findOne({ name: "VIP", isActive: { $ne: false } })) ||
+        (yield subscription_model_1.SubscriptionModel.findOne({ isActive: { $ne: false } }).sort({ createdAt: 1 }));
+    if (!subscription) {
+        return null;
+    }
+    const { purchase, trialAccess } = yield activateFreeTrialPurchase(userId, subscription, "monthly");
     return {
-        days: parseDurationDays(config.trialDuration),
-        isPromo: false,
-        accessLabel: "trial",
+        purchase,
+        accessType: trialAccess.accessLabel,
+        trialDays: trialAccess.days,
+        registrationNumber: trialAccess.registrationNumber,
+        planName: subscription.name,
     };
 });
+exports.autoActivateWelcomeTrial = autoActivateWelcomeTrial;
 const initiateSubscriptionPurchase = (userId_1, subscriptionId_1, ...args_1) => __awaiter(void 0, [userId_1, subscriptionId_1, ...args_1], void 0, function* (userId, subscriptionId, options = {}) {
     const normalizedUserId = String(userId);
     const normalizedSubscriptionId = String(subscriptionId);
@@ -281,32 +321,7 @@ const initiateSubscriptionPurchase = (userId_1, subscriptionId_1, ...args_1) => 
     const endDate = new Date();
     endDate.setMonth(endDate.getMonth() + 1);
     if (options.isFreeTrial) {
-        const trialAccess = yield resolveTrialAccess(normalizedUserId);
-        const trialEndDate = new Date();
-        trialEndDate.setDate(trialEndDate.getDate() + trialAccess.days);
-        yield subscription_model_1.PurchaseModel.updateMany({ userId: normalizedUserId, isActive: true }, { $set: { isActive: false } });
-        const purchase = yield subscription_model_1.PurchaseModel.create({
-            userId: normalizedUserId,
-            subscriptionId: normalizedSubscriptionId,
-            subscriptionName,
-            isFreeTrial: true,
-            paymentStatus: "completed",
-            isActive: true,
-            amount: 0,
-            startDate: new Date(),
-            endDate: trialEndDate,
-            freeTrialEndDate: trialEndDate,
-            billingCycle,
-        });
-        yield user_model_1.UserModel.findByIdAndUpdate(normalizedUserId, {
-            subscriptionType: subscriptionName,
-            subscriptionStatus: "trial",
-            subscriptionEndDate: trialEndDate,
-            freeTrialEndDate: trialEndDate,
-            hasUsedFreeAccess: true,
-            promoAccessUsed: trialAccess.isPromo,
-            currentSubscription: purchase._id,
-        });
+        const { purchase, trialAccess } = yield activateFreeTrialPurchase(normalizedUserId, subscription, billingCycle);
         return {
             purchase,
             checkoutUrl: null,
@@ -316,9 +331,10 @@ const initiateSubscriptionPurchase = (userId_1, subscriptionId_1, ...args_1) => 
             paymentRequired: false,
             accessType: trialAccess.accessLabel,
             trialDays: trialAccess.days,
+            registrationNumber: trialAccess.registrationNumber,
             nextStep: trialAccess.isPromo
-                ? `Promo access activated for ${trialAccess.days} days.`
-                : `Free trial activated for ${trialAccess.days} days.`,
+                ? `1-month free access activated for user #${trialAccess.registrationNumber}.`
+                : `2-day free trial activated for user #${trialAccess.registrationNumber}.`,
         };
     }
     const finalAmount = calculateDiscountedAmount(subscription.price, coupon);
@@ -329,6 +345,7 @@ const initiateSubscriptionPurchase = (userId_1, subscriptionId_1, ...args_1) => 
         userId: normalizedUserId,
         subscriptionId: normalizedSubscriptionId,
         subscriptionName,
+        planSnapshot: (0, planSnapshot_1.buildPlanSnapshot)(subscription, billingCycle),
         isFreeTrial: false,
         paymentStatus: finalAmount === 0 ? "completed" : "pending",
         isActive: finalAmount === 0,

@@ -2,8 +2,10 @@ import Stripe from "stripe";
 import { Request, Response } from "express";
 import { FRONTEND_URL, STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET } from "../../config";
 import { UserModel } from "../../modules/basic_modules/user/user.model";
-import { PurchaseModel } from "../../modules/basic_modules/subscription/subscription.model";
+import { PurchaseModel, SubscriptionModel } from "../../modules/basic_modules/subscription/subscription.model";
 import { CouponModel } from "../../modules/basic_modules/coupon/coupon.model";
+import { buildPlanSnapshot } from "../../utils/planSnapshot";
+import { upsertUserPurchase, deactivateOtherPurchases } from "../../utils/purchaseHelper";
 
 const resolveSubscriptionType = (name?: string) => {
   const value = (name || "").toLowerCase();
@@ -73,12 +75,19 @@ export const handleStripeWebhook = async (req: Request, res: Response) => {
         const paidAmount = (session.amount_total || 0) / 100;
 
         if (!purchase) {
-          purchase = new PurchaseModel({
-            userId,
+          const subscription = subscriptionId
+            ? await SubscriptionModel.findById(subscriptionId)
+            : null;
+
+          purchase = await upsertUserPurchase(userId, {
             subscriptionId,
-            subscriptionName: subscriptionName || "VIP",
+            subscriptionName: subscriptionName || subscription?.name || "VIP",
+            planSnapshot: subscription
+              ? buildPlanSnapshot(subscription, "monthly")
+              : undefined,
             stripeCustomerId: session.customer as string,
             stripeSubscriptionId: session.subscription as string,
+            isFreeTrial: false,
             startDate: new Date(),
             endDate,
             paymentStatus: "completed",
@@ -87,11 +96,22 @@ export const handleStripeWebhook = async (req: Request, res: Response) => {
             billingCycle: "monthly",
           });
         } else {
+          if (purchase.subscriptionId) {
+            const subscription = await SubscriptionModel.findById(purchase.subscriptionId);
+            if (subscription) {
+              purchase.planSnapshot = buildPlanSnapshot(
+                subscription,
+                purchase.billingCycle || "monthly",
+              );
+            }
+          }
           purchase.stripeCustomerId = session.customer as string;
           purchase.stripeSubscriptionId = session.subscription as string;
           purchase.paymentStatus = "completed";
           purchase.isActive = true;
+          purchase.isFreeTrial = false;
           purchase.endDate = endDate;
+          purchase.cancelledAt = undefined;
           if (paidAmount > 0) {
             purchase.amount = paidAmount;
           }
@@ -100,14 +120,7 @@ export const handleStripeWebhook = async (req: Request, res: Response) => {
         await purchase.save();
 
         if (userId) {
-          await PurchaseModel.updateMany(
-            {
-              userId,
-              _id: { $ne: purchase._id },
-              isActive: true,
-            },
-            { $set: { isActive: false } },
-          );
+          await deactivateOtherPurchases(userId, String(purchase._id));
 
           await activateUserSubscription(
             userId,

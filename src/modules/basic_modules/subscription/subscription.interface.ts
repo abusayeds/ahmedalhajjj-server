@@ -16,7 +16,8 @@ export interface ISubscription {
   includesMarketSentiment?: boolean;
   includesEconomicCalendar?: boolean;
   support?: "advanced" | "premium" | "basic" | string;
-  signalTypes?: ("scalp" | "swing" | "long-term")[];
+  signalTypes?: string[];
+  allowedCategories?: string[];
   stripePriceId?: string;
   stripeProductId?: string;
   isActive: boolean;
@@ -26,11 +27,30 @@ export interface ISubscription {
   updatedAt?: Date;
 }
 
+export interface IPlanSnapshot {
+  planName: string;
+  subscriptionId: string;
+  maxSignalsPerDay: number;
+  signalTypes: string[];
+  allowedCategories: string[];
+  includesGoldSignals: boolean;
+  includesTechnicalAnalysis: boolean;
+  includesMarketSentiment: boolean;
+  includesEconomicCalendar: boolean;
+  support: string;
+  features: string[];
+  yearlyEnabled: boolean;
+  priceAtPurchase: number;
+  billingCycle: "monthly" | "yearly";
+  capturedAt: Date;
+}
+
 export interface IPurchase {
   _id?: string;
   userId: mongoose.Types.ObjectId | string;
   subscriptionId: mongoose.Types.ObjectId | string;
   subscriptionName: "VIP" | "Forex" | "Crypto" | string;
+  planSnapshot?: IPlanSnapshot;
   stripeCustomerId?: string;
   stripeSubscriptionId?: string;
   startDate: Date;
@@ -44,6 +64,7 @@ export interface IPurchase {
   cancelledAt?: Date;
   renewalAttempts: number;
   isActive: boolean;
+  verificationOrder?: number;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -64,6 +85,7 @@ export interface ITrialConfig {
   promoDuration: string;
   trialOn: boolean;
   trialDuration: string;
+  verifiedUserCount: number;
   createdAt?: Date;
   updatedAt?: Date;
 }
