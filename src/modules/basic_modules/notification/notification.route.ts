@@ -6,6 +6,9 @@ import {
   getAudienceStatsHandler,
   getNotificationsAdmin,
   getNotificationsApp,
+  getUnreadNotificationCountHandler,
+  markAllNotificationsReadHandler,
+  markNotificationReadHandler,
   scheduleNotificationHandler,
   sendNotificationHandler,
   updateNotificationHandler,
@@ -13,7 +16,10 @@ import {
 
 const router = Router();
 
+router.get("/app/unread-count", authMiddleware(role.user), getUnreadNotificationCountHandler);
+router.post("/app/read-all", authMiddleware(role.user), markAllNotificationsReadHandler);
 router.get("/app", authMiddleware(role.user), getNotificationsApp);
+router.post("/app/:notificationId/read", authMiddleware(role.user), markNotificationReadHandler);
 
 router.get("/audience-stats", authMiddleware(role.admin), getAudienceStatsHandler);
 router.get("/", authMiddleware(role.admin), getNotificationsAdmin);

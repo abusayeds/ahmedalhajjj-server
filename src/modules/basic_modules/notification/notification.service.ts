@@ -1,6 +1,7 @@
 import httpStatus from "http-status";
 import AppError from "../../../errors/AppError";
 import queryBuilder from "../../../builder/queryBuilder";
+import { resolveUserAccess } from "../../../utils/subscriptionAccess";
 import { IUser } from "../user/user.interface";
 import { UserModel } from "../user/user.model";
 import {
@@ -9,16 +10,13 @@ import {
   NotificationStatus,
 } from "./notification.interface";
 import { NotificationModel } from "./notification.model";
+import { NotificationReadModel } from "./notificationRead.model";
+import {
+  formatNotificationForApp,
+  formatNotificationForDashboard,
+} from "./notification.formatter";
 
-const formatSentLabel = (date?: Date) => {
-  if (!date) return "—";
-  return date.toLocaleString("en-US", {
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-};
+export { formatNotificationForDashboard } from "./notification.formatter";
 
 const baseUserFilter = {
   role: "user",
@@ -122,31 +120,76 @@ export const deleteNotification = async (id: string) => {
   return deleted;
 };
 
-const getAudiencesForUser = (user: IUser): NotificationAudience[] => {
+const getAudiencesForUser = async (user: IUser): Promise<NotificationAudience[]> => {
   const audiences: NotificationAudience[] = ["All Users"];
+  const access = await resolveUserAccess(user);
 
-  if (user.subscriptionStatus === "trial") {
+  if (access.hasActiveAccess) {
+    if (access.accessType === "trial" || access.accessType === "promo") {
+      audiences.push("Trial Users");
+    }
+
+    if (access.plan === "VIP") audiences.push("VIP Users");
+    if (access.plan === "Forex") audiences.push("Forex Users");
+    if (access.plan === "Crypto") audiences.push("Crypto Users");
+  } else if (user.subscriptionStatus === "trial") {
     audiences.push("Trial Users");
   }
 
-  if (["active", "trial"].includes(user.subscriptionStatus)) {
-    if (user.subscriptionType === "VIP") audiences.push("VIP Users");
-    if (user.subscriptionType === "Forex") audiences.push("Forex Users");
-    if (user.subscriptionType === "Crypto") audiences.push("Crypto Users");
-  }
+  if (user.subscriptionType === "VIP") audiences.push("VIP Users");
+  if (user.subscriptionType === "Forex") audiences.push("Forex Users");
+  if (user.subscriptionType === "Crypto") audiences.push("Crypto Users");
 
   return [...new Set(audiences)];
+};
+
+const buildAppNotificationFilter = async (user: IUser) => {
+  const audiences = await getAudiencesForUser(user);
+  return {
+    status: "Sent" as NotificationStatus,
+    audience: { $in: audiences },
+  };
+};
+
+const getReadNotificationIds = async (userId: string, notificationIds: string[]) => {
+  if (!notificationIds.length) {
+    return new Set<string>();
+  }
+
+  const reads = await NotificationReadModel.find({
+    userId,
+    notificationId: { $in: notificationIds },
+  }).select("notificationId");
+
+  return new Set(reads.map((item) => String(item.notificationId)));
+};
+
+export const getAppUnreadNotificationCount = async (user: IUser) => {
+  const baseFilter = await buildAppNotificationFilter(user);
+  const notificationIds = await NotificationModel.find(baseFilter).select("_id");
+  const allIds = notificationIds.map((item) => String(item._id));
+
+  if (!allIds.length) {
+    return { unreadCount: 0, totalCount: 0 };
+  }
+
+  const readCount = await NotificationReadModel.countDocuments({
+    userId: user._id,
+    notificationId: { $in: allIds },
+  });
+
+  const totalCount = allIds.length;
+  return {
+    unreadCount: Math.max(0, totalCount - readCount),
+    totalCount,
+  };
 };
 
 export const getAppNotifications = async (
   user: IUser,
   query: Record<string, unknown> = {},
 ) => {
-  const audiences = getAudiencesForUser(user);
-  const baseFilter = {
-    status: "Sent" as NotificationStatus,
-    audience: { $in: audiences },
-  };
+  const baseFilter = await buildAppNotificationFilter(user);
 
   const builderQuery: Record<string, unknown> = { ...query };
   if (!builderQuery.sort) {
@@ -166,25 +209,111 @@ export const getAppNotifications = async (
   );
   const notifications = await notificationQuery.modelQuery.exec();
   const currentPage = Number(builderQuery.page) || 1;
-  const limit = Number(builderQuery.limit) || 10;
+  const limit = Number(builderQuery.limit) || 20;
   const pagination = notificationQuery.calculatePagination({
     totalData,
     currentPage,
     limit,
   });
 
-  return { notifications, pagination };
+  const notificationIds = notifications.map((item) => String(item._id));
+  const readSet = await getReadNotificationIds(String(user._id), notificationIds);
+  const unreadStats = await getAppUnreadNotificationCount(user);
+
+  return {
+    notifications: notifications.map((notification) =>
+      formatNotificationForApp(notification, {
+        isRead: readSet.has(String(notification._id)),
+      }),
+    ),
+    unreadCount: unreadStats.unreadCount,
+    totalNotifications: totalData,
+    pagination,
+    message:
+      notifications.length === 0
+        ? "No notifications yet."
+        : "Your latest alerts and updates.",
+  };
 };
 
-export const formatNotificationForDashboard = (notification: INotification) => ({
-  id: notification._id,
-  _id: notification._id,
-  title: notification.title,
-  audience: notification.audience,
-  sent: formatSentLabel(notification.sentAt || notification.createdAt),
-  reach: notification.reach || 0,
-  opened: notification.opened || 0,
-  status: notification.status,
-  message: notification.message,
-  scheduledAt: notification.scheduledAt,
-});
+export const markAppNotificationRead = async (user: IUser, notificationId: string) => {
+  const baseFilter = await buildAppNotificationFilter(user);
+  const notification = await NotificationModel.findOne({
+    _id: notificationId,
+    ...baseFilter,
+  });
+
+  if (!notification) {
+    throw new AppError(httpStatus.NOT_FOUND, "Notification not found.");
+  }
+
+  const existing = await NotificationReadModel.findOne({
+    userId: user._id,
+    notificationId,
+  });
+
+  if (!existing) {
+    await NotificationReadModel.create({
+      userId: user._id,
+      notificationId,
+      readAt: new Date(),
+    });
+    await NotificationModel.findByIdAndUpdate(notificationId, { $inc: { opened: 1 } });
+  }
+
+  const unreadStats = await getAppUnreadNotificationCount(user);
+
+  return {
+    notificationId,
+    isRead: true,
+    notification: formatNotificationForApp(notification, { isRead: true }),
+    unreadCount: unreadStats.unreadCount,
+  };
+};
+
+export const markAllAppNotificationsRead = async (user: IUser) => {
+  const baseFilter = await buildAppNotificationFilter(user);
+  const notifications = await NotificationModel.find(baseFilter).select("_id");
+  const notificationIds = notifications.map((item) => String(item._id));
+
+  if (!notificationIds.length) {
+    return { markedCount: 0, unreadCount: 0 };
+  }
+
+  const alreadyRead = await NotificationReadModel.find({
+    userId: user._id,
+    notificationId: { $in: notificationIds },
+  }).select("notificationId");
+  const readSet = new Set(alreadyRead.map((item) => String(item.notificationId)));
+
+  const unreadIds = notificationIds.filter((id) => !readSet.has(id));
+
+  if (unreadIds.length) {
+    await Promise.all(
+      unreadIds.map(async (notificationId) => {
+        try {
+          await NotificationReadModel.create({
+            userId: user._id,
+            notificationId,
+            readAt: new Date(),
+          });
+        } catch (error: unknown) {
+          const mongoError = error as { code?: number };
+          if (mongoError?.code !== 11000) {
+            throw error;
+          }
+        }
+      }),
+    );
+
+    await NotificationModel.updateMany(
+      { _id: { $in: unreadIds } },
+      { $inc: { opened: 1 } },
+    );
+  }
+
+  return {
+    markedCount: unreadIds.length,
+    unreadCount: 0,
+  };
+};

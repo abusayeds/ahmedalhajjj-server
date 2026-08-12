@@ -10,7 +10,10 @@ import {
   formatNotificationForDashboard,
   getAdminNotifications,
   getAppNotifications,
+  getAppUnreadNotificationCount,
   getAudienceStats,
+  markAllAppNotificationsRead,
+  markAppNotificationRead,
   updateNotification,
 } from "./notification.service";
 
@@ -51,9 +54,61 @@ export const getNotificationsApp = catchAsync(
     sendResponse(res, {
       statusCode: httpStatus.OK,
       success: true,
-      message: "Notifications retrieved successfully",
-      data: result.notifications.map(formatNotificationForDashboard),
+      message: result.message,
+      data: {
+        notifications: result.notifications,
+        unreadCount: result.unreadCount,
+        totalNotifications: result.totalNotifications,
+      },
       pagination: result.pagination,
+    });
+  },
+);
+
+export const getUnreadNotificationCountHandler = catchAsync(
+  async (req: AuthRequest, res: Response) => {
+    if (!req.user) {
+      throw new AppError(httpStatus.UNAUTHORIZED, "Unauthorized");
+    }
+
+    const data = await getAppUnreadNotificationCount(req.user);
+    sendResponse(res, {
+      statusCode: httpStatus.OK,
+      success: true,
+      message: "Unread notification count retrieved.",
+      data,
+    });
+  },
+);
+
+export const markNotificationReadHandler = catchAsync(
+  async (req: AuthRequest, res: Response) => {
+    if (!req.user) {
+      throw new AppError(httpStatus.UNAUTHORIZED, "Unauthorized");
+    }
+
+    const data = await markAppNotificationRead(req.user, req.params.notificationId);
+    sendResponse(res, {
+      statusCode: httpStatus.OK,
+      success: true,
+      message: "Notification marked as read.",
+      data,
+    });
+  },
+);
+
+export const markAllNotificationsReadHandler = catchAsync(
+  async (req: AuthRequest, res: Response) => {
+    if (!req.user) {
+      throw new AppError(httpStatus.UNAUTHORIZED, "Unauthorized");
+    }
+
+    const data = await markAllAppNotificationsRead(req.user);
+    sendResponse(res, {
+      statusCode: httpStatus.OK,
+      success: true,
+      message: "All notifications marked as read.",
+      data,
     });
   },
 );
