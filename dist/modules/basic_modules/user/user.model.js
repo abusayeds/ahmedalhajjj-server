@@ -96,6 +96,7 @@ const UserSchema = new mongoose_1.Schema({
     freeTrialEndDate: { type: Date },
     hasUsedFreeAccess: { type: Boolean, default: false },
     promoAccessUsed: { type: Boolean, default: false },
+    registrationNumber: { type: Number, index: true },
 }, { timestamps: true });
 UserSchema.pre("save", function (next) {
     if ((this.firstName || this.lastName) && !this.name) {

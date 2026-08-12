@@ -34,6 +34,7 @@ export type IUser = {
   freeTrialEndDate?: Date;
   hasUsedFreeAccess: boolean;
   promoAccessUsed?: boolean;
+  verificationOrder?: number;
 } & Document;
 
 export type IOTP = {

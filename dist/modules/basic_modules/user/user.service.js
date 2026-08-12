@@ -22,6 +22,10 @@ const config_1 = require("../../../config");
 const AppError_1 = __importDefault(require("../../../errors/AppError"));
 const sendEmail_1 = require("./sendEmail");
 const user_model_1 = require("./user.model");
+const subscription_model_1 = require("../subscription/subscription.model");
+const planSnapshot_1 = require("../../../utils/planSnapshot");
+const subscription_service_1 = require("../subscription/subscription.service");
+const welcomeTrial_1 = require("../../../utils/welcomeTrial");
 const generateToken = (payload) => {
     return jsonwebtoken_1.default.sign(payload, config_1.JWT_SECRET_KEY, { expiresIn: "7d" });
 };
@@ -63,10 +67,15 @@ const createUserDB = (payload) => __awaiter(void 0, void 0, void 0, function* ()
         throw new AppError_1.default(http_status_1.default.BAD_REQUEST, 'Passwords do not match');
     }
     if (isUserRegistered && isUserRegistered.isVerify === false) {
-        yield user_model_1.UserModel.findOneAndUpdate({ email: payload.email }, payload, { new: true, upsert: true });
+        const updatePayload = Object.assign({}, payload);
+        if (!isUserRegistered.registrationNumber) {
+            updatePayload.registrationNumber = yield (0, welcomeTrial_1.getNextRegistrationNumber)();
+        }
+        yield user_model_1.UserModel.findOneAndUpdate({ email: payload.email }, updatePayload, { new: true, upsert: true });
     }
     else if (!isUserRegistered) {
-        yield user_model_1.UserModel.create(payload);
+        const registrationNumber = yield (0, welcomeTrial_1.getNextRegistrationNumber)();
+        yield user_model_1.UserModel.create(Object.assign(Object.assign({}, payload), { registrationNumber }));
     }
     const email = payload.email;
     const otp = (0, exports.generateOTP)();
@@ -84,6 +93,9 @@ const verifyOtpDB = (email) => __awaiter(void 0, void 0, void 0, function* () {
         throw new AppError_1.default(http_status_1.default.BAD_REQUEST, "Alredy verified");
     }
     const result = yield user_model_1.UserModel.findOneAndUpdate({ email: email, }, { isVerify: true }, { new: true, upsert: true, });
+    if ((result === null || result === void 0 ? void 0 : result.role) === "user" && !result.isDeleted) {
+        yield (0, subscription_service_1.autoActivateWelcomeTrial)(String(result._id));
+    }
     return {
         _id: result._id,
         email: result.email
@@ -266,12 +278,34 @@ const upgradeUserSubscriptionDB = (userId, subscriptionType) => __awaiter(void 0
     if (user.role === "admin") {
         throw new AppError_1.default(http_status_1.default.FORBIDDEN, "Cannot update an admin user.");
     }
+    const subscription = yield subscription_model_1.SubscriptionModel.findOne({
+        name: subscriptionType,
+        isActive: { $ne: false },
+    });
+    if (!subscription) {
+        throw new AppError_1.default(http_status_1.default.NOT_FOUND, "Subscription plan not found.");
+    }
     const endDate = new Date();
     endDate.setDate(endDate.getDate() + 30);
+    yield subscription_model_1.PurchaseModel.updateMany({ userId, isActive: true }, { $set: { isActive: false } });
+    const purchase = yield subscription_model_1.PurchaseModel.create({
+        userId,
+        subscriptionId: subscription._id,
+        subscriptionName: subscription.name,
+        planSnapshot: (0, planSnapshot_1.buildPlanSnapshot)(subscription, "monthly"),
+        isFreeTrial: false,
+        paymentStatus: "completed",
+        isActive: true,
+        amount: 0,
+        startDate: new Date(),
+        endDate,
+        billingCycle: "monthly",
+    });
     const result = yield user_model_1.UserModel.findByIdAndUpdate(userId, {
         subscriptionType,
         subscriptionStatus: "active",
         subscriptionEndDate: endDate,
+        currentSubscription: purchase._id,
     }, { new: true }).select('-password -isVerify');
     return result;
 });
@@ -291,6 +325,11 @@ const extendUserSubscriptionDB = (userId, days) => __awaiter(void 0, void 0, voi
         subscriptionEndDate: baseDate,
         subscriptionStatus: user.subscriptionStatus === "expired" ? "active" : user.subscriptionStatus,
     }, { new: true }).select('-password -isVerify');
+    if (user.currentSubscription) {
+        yield subscription_model_1.PurchaseModel.findByIdAndUpdate(user.currentSubscription, {
+            endDate: baseDate,
+        });
+    }
     return result;
 });
 const toggleUserBlockDB = (userId) => __awaiter(void 0, void 0, void 0, function* () {

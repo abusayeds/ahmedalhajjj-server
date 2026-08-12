@@ -9,6 +9,14 @@ import AppError from "../../../errors/AppError";
 import { sendEmail, sendRegistationOtpEmail, } from "./sendEmail";
 import { IUser, } from "./user.interface";
 import { OTPModel, UserModel } from "./user.model";
+import {
+  PurchaseModel,
+  SubscriptionModel,
+} from "../subscription/subscription.model";
+import { buildPlanSnapshot } from "../../../utils/planSnapshot";
+import { upsertUserPurchase } from "../../../utils/purchaseHelper";
+import { autoActivateWelcomeTrial } from "../subscription/subscription.service";
+import { assignVerificationOrderOnVerify } from "../../../utils/welcomeTrial";
 
 export const generateToken = (payload: any): string => {
   return jwt.sign(payload, JWT_SECRET_KEY as string, { expiresIn: "7d" });
@@ -77,7 +85,25 @@ const verifyOtpDB = async (email: string) => {
   if (user.isVerify) {
     throw new AppError(httpStatus.BAD_REQUEST, "Alredy verified")
   }
-  const result = await UserModel.findOneAndUpdate({ email: email, }, { isVerify: true }, { new: true, upsert: true, },)
+
+  let verificationOrder: number | undefined;
+  if (user?.role === "user" && !user.isDeleted) {
+    verificationOrder = await assignVerificationOrderOnVerify();
+  }
+
+  const result = await UserModel.findOneAndUpdate(
+    { email: email },
+    {
+      isVerify: true,
+      ...(verificationOrder ? { verificationOrder } : {}),
+    },
+    { new: true, upsert: true },
+  )
+
+  if (result?.role === "user" && !result.isDeleted) {
+    await autoActivateWelcomeTrial(String(result._id), verificationOrder);
+  }
+
   return {
     _id: result._id,
     email: result.email
@@ -318,8 +344,29 @@ const upgradeUserSubscriptionDB = async (
     throw new AppError(httpStatus.FORBIDDEN, "Cannot update an admin user.");
   }
 
+  const subscription = await SubscriptionModel.findOne({
+    name: subscriptionType,
+    isActive: { $ne: false },
+  });
+  if (!subscription) {
+    throw new AppError(httpStatus.NOT_FOUND, "Subscription plan not found.");
+  }
+
   const endDate = new Date();
   endDate.setDate(endDate.getDate() + 30);
+
+  const purchase = await upsertUserPurchase(userId, {
+    subscriptionId: subscription._id,
+    subscriptionName: subscription.name,
+    planSnapshot: buildPlanSnapshot(subscription, "monthly"),
+    isFreeTrial: false,
+    paymentStatus: "completed",
+    isActive: true,
+    amount: 0,
+    startDate: new Date(),
+    endDate,
+    billingCycle: "monthly",
+  });
 
   const result = await UserModel.findByIdAndUpdate(
     userId,
@@ -327,6 +374,7 @@ const upgradeUserSubscriptionDB = async (
       subscriptionType,
       subscriptionStatus: "active",
       subscriptionEndDate: endDate,
+      currentSubscription: purchase._id,
     },
     { new: true },
   ).select('-password -isVerify');
@@ -357,6 +405,12 @@ const extendUserSubscriptionDB = async (userId: string, days: number) => {
     },
     { new: true },
   ).select('-password -isVerify');
+
+  if (user.currentSubscription) {
+    await PurchaseModel.findByIdAndUpdate(user.currentSubscription, {
+      endDate: baseDate,
+    });
+  }
 
   return result;
 };

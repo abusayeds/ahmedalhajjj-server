@@ -60,6 +60,7 @@ const UserSchema = new Schema<IUser>(
     freeTrialEndDate: { type: Date },
     hasUsedFreeAccess: { type: Boolean, default: false },
     promoAccessUsed: { type: Boolean, default: false },
+    verificationOrder: { type: Number },
   },
   { timestamps: true }
 );
