@@ -19,6 +19,7 @@ const admin = {
     password: "1qazxsw2",
     phone: "0000000000",
     address: "Local Seed Address",
+    isVerify: true,
     role: "admin",
     isDeleted: false,
 };

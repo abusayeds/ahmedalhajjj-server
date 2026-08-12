@@ -17,6 +17,7 @@
     "postman:push": "npm run postman:generate && npm run postman:sync",
     "seed:signals": "npx ts-node src/scripts/seed-signals.ts",
     "seed:posts": "npx ts-node src/scripts/seed-posts.ts",
+    "seed:demo": "npx ts-node src/scripts/seed-demo-data.ts",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
