@@ -22,9 +22,25 @@ const signalType_service_1 = require("./signalType.service");
 var signal_formatter_1 = require("./signal.formatter");
 Object.defineProperty(exports, "formatSignalForApp", { enumerable: true, get: function () { return signal_formatter_1.formatSignalForApp; } });
 Object.defineProperty(exports, "formatSignalForDashboard", { enumerable: true, get: function () { return signal_formatter_1.formatSignalForDashboard; } });
+const normalizeCategory = (category) => {
+    const raw = String(category || "").trim();
+    const lower = raw.toLowerCase();
+    const map = {
+        forex: "Forex",
+        crypto: "Crypto",
+        cryptocurrency: "Crypto",
+        commodity: "Commodity",
+        gold: "Commodity",
+        index: "Index",
+    };
+    return map[lower] || (["Forex", "Crypto", "Commodity", "Index"].includes(raw) ? raw : "Forex");
+};
 const normalizeSignalPayload = (payload) => {
     const data = Object.assign({}, payload);
-    if (payload.category === "Commodity") {
+    if (payload.category) {
+        data.category = normalizeCategory(payload.category);
+    }
+    if (data.category === "Commodity") {
         data.isGoldSignal = true;
     }
     if (payload.status === "Active") {
@@ -116,8 +132,6 @@ const buildAppSignalFilter = (access, query) => {
         andConditions.push({ signalDate: { $gte: start, $lte: end } });
     }
     else {
-        const { start, end } = (0, subscriptionAccess_1.getTodayRange)();
-        andConditions.push({ signalDate: { $gte: start, $lte: end } });
         if (access.allowedCategories.length) {
             andConditions.push({ category: { $in: access.allowedCategories } });
         }
@@ -178,8 +192,8 @@ const getAppSignals = (user_1, ...args_1) => __awaiter(void 0, [user_1, ...args_
         limit,
     });
     const message = !access.hasActiveAccess
-        ? "Showing previous day active signals only. Subscribe for today's live signals."
-        : "Live active signals for your subscription plan.";
+        ? "Showing yesterday's active signals only. Subscribe to unlock today's and past signals for your plan."
+        : "Showing today's and previous active signals for your subscription plan.";
     return {
         access,
         signals,

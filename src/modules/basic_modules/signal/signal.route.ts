@@ -8,9 +8,15 @@ import {
   deleteSignalHandler,
   duplicateSignalHandler,
   getMarketHoursHandler,
+  getSignalAppChart,
+  getSignalAppDetail,
+  getSignalAppMarket,
   getSignalsAdmin,
   getSignalsApp,
+  getSignalsAppHistory,
   publishSignalHandler,
+  setSignalAlertsHandler,
+  setSignalFavoriteHandler,
   updateSignalHandler,
 } from "./signal.controller";
 import {
@@ -24,7 +30,13 @@ const router = Router();
 
 // Mobile app routes
 router.get("/app/market-hours", authMiddleware(role.user), getMarketHoursHandler);
+router.get("/app/history", authMiddleware(role.user), getSignalsAppHistory);
 router.get("/app", authMiddleware(role.user), getSignalsApp);
+router.get("/app/:id/chart", authMiddleware(role.user), getSignalAppChart);
+router.get("/app/:id/market", authMiddleware(role.user), getSignalAppMarket);
+router.post("/app/:id/favorite", authMiddleware(role.user), setSignalFavoriteHandler);
+router.post("/app/:id/alerts", authMiddleware(role.user), setSignalAlertsHandler);
+router.get("/app/:id", authMiddleware(role.user), getSignalAppDetail);
 
 // Admin dashboard routes
 router.get("/types", authMiddleware(role.admin), getSignalTypesHandler);

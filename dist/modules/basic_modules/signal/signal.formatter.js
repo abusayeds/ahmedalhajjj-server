@@ -3,8 +3,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.formatSignalForApp = exports.formatSignalForDashboard = exports.formatPublishedLabel = exports.getRelativeTime = exports.calcRiskReward = exports.calcTpPercent = exports.calcSlPercent = void 0;
 const CATEGORY_LABELS = {
     Forex: "Forex",
-    Crypto: "Cryptocurrency",
-    Commodity: "Gold",
+    Crypto: "Crypto",
+    Commodity: "Commodity",
     Index: "Index",
 };
 const parsePrice = (value) => {
