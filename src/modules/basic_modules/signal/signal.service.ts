@@ -58,6 +58,18 @@ const normalizeSignalPayload = (payload: Partial<ISignal>) => {
   return data;
 };
 
+const parseFilterDate = (value: unknown, endOfDay = false) => {
+  const raw = String(value || "").trim();
+  if (!raw) return null;
+
+  const [year, month, day] = raw.split("-").map(Number);
+  if (!year || !month || !day) return null;
+
+  return new Date(
+    Date.UTC(year, month - 1, day, endOfDay ? 23 : 0, endOfDay ? 59 : 0, endOfDay ? 59 : 0, endOfDay ? 999 : 0),
+  );
+};
+
 export const getAdminSignals = async (query: Record<string, unknown>) => {
   const filter: Record<string, unknown> = { status: { $ne: "Archived" } };
 
@@ -69,7 +81,23 @@ export const getAdminSignals = async (query: Record<string, unknown>) => {
     filter.asset = { $regex: String(query.searchTerm), $options: "i" };
   }
 
-  return SignalModel.find(filter).sort({ createdAt: -1 });
+  const singleDate = parseFilterDate(query.date);
+  const fromDate = parseFilterDate(query.fromDate || query.startDate);
+  const toDate = parseFilterDate(query.toDate || query.endDate, true);
+
+  if (singleDate) {
+    filter.signalDate = {
+      $gte: singleDate,
+      $lte: parseFilterDate(query.date, true),
+    };
+  } else if (fromDate || toDate) {
+    filter.signalDate = {
+      ...(fromDate ? { $gte: fromDate } : {}),
+      ...(toDate ? { $lte: toDate } : {}),
+    };
+  }
+
+  return SignalModel.find(filter).sort({ signalDate: -1, createdAt: -1 });
 };
 
 export const createSignal = async (payload: Partial<ISignal>, adminId?: string) => {
