@@ -339,6 +339,17 @@ export const setSignalAlerts = async (
   return { signalId, alertsEnabled: enabled };
 };
 
+const HISTORY_QUERY_KEYS = [
+  "result",
+  "outcome",
+  "search",
+  "scope",
+  "category",
+  "fromDate",
+  "toDate",
+  "date",
+];
+
 const normalizeSignalQuery = (query: Record<string, unknown>) => {
   const builderQuery: Record<string, unknown> = { ...query };
 
@@ -350,9 +361,9 @@ const normalizeSignalQuery = (query: Record<string, unknown>) => {
     builderQuery.sort = "-publishedAt";
   }
 
-  delete builderQuery.category;
-  delete builderQuery.search;
-  delete builderQuery.scope;
+  HISTORY_QUERY_KEYS.forEach((key) => {
+    delete builderQuery[key];
+  });
 
   return builderQuery;
 };
@@ -398,6 +409,32 @@ export const getAppSignals = async (
   };
 };
 
+const normalizeHistoryResult = (value: unknown) => {
+  const result = String(value || "All").trim().toLowerCase();
+  if (!result || result === "all") return null;
+  if (result === "win") return "Win";
+  if (result === "loss") return "Loss";
+  if (result === "breakeven" || result === "break" || result === "be") return "Breakeven";
+  return null;
+};
+
+const buildHistoryAccessFilter = (
+  access: Awaited<ReturnType<typeof resolveUserAccess>>,
+) => {
+  const andConditions: Record<string, unknown>[] = [{ status: "Closed" }];
+
+  if (access.hasActiveAccess) {
+    if (access.allowedCategories.length) {
+      andConditions.push({ category: { $in: access.allowedCategories } });
+    }
+    if (access.allowedSignalTypes.length) {
+      andConditions.push(buildSignalTypeMatchFilter(access.allowedSignalTypes));
+    }
+  }
+
+  return andConditions.length === 1 ? andConditions[0] : { $and: andConditions };
+};
+
 const buildHistoryFilter = (
   access: Awaited<ReturnType<typeof resolveUserAccess>>,
   query: Record<string, unknown>,
@@ -413,16 +450,8 @@ const buildHistoryFilter = (
     }
   }
 
-  const result = String(query.result || query.outcome || "All").trim();
-  if (result && result.toLowerCase() !== "all") {
-    const normalized =
-      result.toLowerCase() === "win"
-        ? "Win"
-        : result.toLowerCase() === "loss"
-          ? "Loss"
-          : result.toLowerCase() === "breakeven" || result.toLowerCase() === "break"
-            ? "Breakeven"
-            : result;
+  const normalized = normalizeHistoryResult(query.result || query.outcome);
+  if (normalized) {
     andConditions.push({ closeResult: normalized });
   }
 
@@ -468,12 +497,13 @@ export const getAppSignalHistory = async (
     };
   }
 
+  const statsFilter = buildHistoryAccessFilter(access);
   const baseFilter = buildHistoryFilter(access, query);
   const builderQuery = normalizeSignalQuery(query);
   const limit = Number(builderQuery.limit) || 10;
   const page = Number(builderQuery.page) || 1;
 
-  const allClosedForStats = await SignalModel.find(baseFilter).select("closeResult");
+  const allClosedForStats = await SignalModel.find(statsFilter).select("closeResult");
   const performanceOverview = buildHistoryStats(allClosedForStats);
 
   const signalQuery = new queryBuilder(SignalModel.find(baseFilter), {
@@ -483,7 +513,6 @@ export const getAppSignalHistory = async (
     page,
   })
     .search(["asset", "type"] as Array<keyof ISignal>)
-    .filter()
     .sort();
 
   const { totalData } = await signalQuery.paginate(SignalModel.find(baseFilter));
