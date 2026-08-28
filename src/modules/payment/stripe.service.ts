@@ -231,7 +231,7 @@ export interface CheckoutSessionParams {
   couponCode?: string;
 }
 
-// Create Stripe checkout session for paid subscription purchase
+
 export const createCheckoutSession = async (params: CheckoutSessionParams) => {
   const unitAmount = Math.max(0, Math.round(params.amount * 100));
 
