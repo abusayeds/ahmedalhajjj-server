@@ -15,7 +15,6 @@ import { logger, logHttpRequests } from "./logger/logger";
 // Create an Express application
 const app: Application = express();
 
-// // Define __dirname manually
 
 // Stripe webhook - raw body parser (must be before json parser)
 app.post(
