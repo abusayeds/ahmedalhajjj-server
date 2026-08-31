@@ -1,0 +1,9 @@
+{"level":"info","message":" Incoming Request \u001b[34mPOST\u001b[39m \u001b[32m200\u001b[39m \u001b[35m/api/v1/user/login\u001b[39m \u001b[93m366 ms\u001b[39m","size":"742","timestamp":"2026-08-31 14:24:36"}
+{"level":"info","message":" Incoming Request \u001b[32mGET\u001b[39m \u001b[32m200\u001b[39m \u001b[35m/api/v1/notification/audience-stats\u001b[39m \u001b[93m45 ms\u001b[39m","size":"139","timestamp":"2026-08-31 14:24:36"}
+{"level":"info","message":" Incoming Request \u001b[32mGET\u001b[39m \u001b[32m200\u001b[39m \u001b[35m/api/v1/signal/types\u001b[39m \u001b[93m113 ms\u001b[39m","size":"860","timestamp":"2026-08-31 14:24:37"}
+{"level":"info","message":" Incoming Request \u001b[32mGET\u001b[39m \u001b[32m200\u001b[39m \u001b[35m/api/v1/user/my-profile\u001b[39m \u001b[93m111 ms\u001b[39m","size":"522","timestamp":"2026-08-31 14:24:37"}
+{"level":"info","message":" Incoming Request \u001b[32mGET\u001b[39m \u001b[32m200\u001b[39m \u001b[35m/api/v1/dashboard/stats?range=6M\u001b[39m \u001b[93m288 ms\u001b[39m","size":"1785","timestamp":"2026-08-31 14:24:37"}
+{"level":"info","message":" Incoming Request \u001b[32mGET\u001b[39m \u001b[34m304\u001b[39m \u001b[35m/api/v1/notification/audience-stats\u001b[39m \u001b[93m12 ms\u001b[39m","size":0,"timestamp":"2026-08-31 14:24:50"}
+{"level":"info","message":" Incoming Request \u001b[32mGET\u001b[39m \u001b[34m304\u001b[39m \u001b[35m/api/v1/signal/types\u001b[39m \u001b[93m8 ms\u001b[39m","size":0,"timestamp":"2026-08-31 14:24:50"}
+{"level":"info","message":" Incoming Request \u001b[32mGET\u001b[39m \u001b[34m304\u001b[39m \u001b[35m/api/v1/dashboard/stats?range=6M\u001b[39m \u001b[93m53 ms\u001b[39m","size":0,"timestamp":"2026-08-31 14:24:50"}
+{"level":"info","message":" Incoming Request \u001b[32mGET\u001b[39m \u001b[34m304\u001b[39m \u001b[35m/api/v1/user/my-profile\u001b[39m \u001b[93m5 ms\u001b[39m","size":0,"timestamp":"2026-08-31 14:24:50"}

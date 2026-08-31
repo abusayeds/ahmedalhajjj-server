@@ -1,0 +1,4 @@
+{"level":"info","message":"Root endpoint hit","timestamp":"2026-08-30 21:12:58"}
+{"level":"info","message":" Incoming Request \u001b[31mHEAD\u001b[39m \u001b[32m200\u001b[39m \u001b[35m/\u001b[39m \u001b[93m97 ms\u001b[39m","size":"109","timestamp":"2026-08-30 21:12:58"}
+{"level":"info","message":"Root endpoint hit","timestamp":"2026-08-30 21:12:58"}
+{"level":"info","message":" Incoming Request \u001b[31mHEAD\u001b[39m \u001b[32m200\u001b[39m \u001b[35m/\u001b[39m \u001b[93m6 ms\u001b[39m","size":"109","timestamp":"2026-08-30 21:12:58"}

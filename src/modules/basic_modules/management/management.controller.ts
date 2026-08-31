@@ -7,7 +7,6 @@ import AppError from "../../../errors/AppError";
 import catchAsync from "../../../utils/catchAsync";
 import sendResponse from "../../../utils/sendResponse";
 
-// Sanitize options for description content
 const sanitizeOptions = {
   allowedTags: [
     "b",
