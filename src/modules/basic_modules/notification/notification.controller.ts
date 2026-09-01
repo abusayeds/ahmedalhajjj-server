@@ -107,7 +107,7 @@ export const markAllNotificationsReadHandler = catchAsync(
     sendResponse(res, {
       statusCode: httpStatus.OK,
       success: true,
-      message: "All notifications marked as read.",
+      message: "All notifications marked as read ",
       data,
     });
   },
